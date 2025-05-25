@@ -20,6 +20,7 @@ from datetime import datetime
 import json
 import shutil
 import zipfile
+import io
 
 load_dotenv()
 
@@ -631,20 +632,18 @@ async def analizar_cv(pdf_url: str, puesto_postular: str):
       
     """
 
+    while True:
+        response5 = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo", 
+            messages=[{"role": "user", "content": prompt5}],
+            temperature=0.7,
+            #max_tokens=200 
+        )
+        cv_improvement_suggestions = response5['choices'][0]['message']['content']
 
-    response5 = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo", 
-        messages=[{"role": "user", "content": prompt5}],
-        temperature=0.7,
-        #max_tokens=200 
-    )
-    cv_improvement_suggestions = response5['choices'][0]['message']['content']
-
-    suggestions_data = safe_json_load(cv_improvement_suggestions)
-    if suggestions_data is None:
-        return JSONResponse(content={"error": "Error al procesar sugerencias de mejora"}, status_code=400)
-
-
+        suggestions_data = safe_json_load(cv_improvement_suggestions)
+        if suggestions_data is not None:
+            break
 
 
     prompt20 = f"""
@@ -681,23 +680,22 @@ async def analizar_cv(pdf_url: str, puesto_postular: str):
         Solo es de la formación academica., TODO LO QUE ANALIZAS ES RESPECTO AL CV, NO ME AGREGUES COSAS QUE NO SON
         {contenido}
     """
+    while True:
 
-    response20 = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo", 
-        messages=[{"role": "user", "content": prompt20}],
-        temperature=0.7,
-        #max_tokens=200 
-    )
-    formacion_academica = response20['choices'][0]['message']['content']
-
-
-
-
-    suggestions_data2 = safe_json_load(formacion_academica)
-    if suggestions_data2 is None:
-        return JSONResponse(content={"error": "Error en formación académica"}, status_code=400)
+        response20 = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo", 
+            messages=[{"role": "user", "content": prompt20}],
+            temperature=0.7,
+            #max_tokens=200 
+        )
+        formacion_academica = response20['choices'][0]['message']['content']
 
 
+
+
+        suggestions_data2 = safe_json_load(formacion_academica)
+            if suggestions_data2 is not None:
+                break
 
 
 
@@ -742,20 +740,18 @@ async def analizar_cv(pdf_url: str, puesto_postular: str):
     {contenido}
     """
 
-    response21 = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo", 
-        messages=[{"role": "user", "content": prompt21}],
-        temperature=0.7,
-        #max_tokens=200 
-    )
-    habilidades_tecnicas = response21['choices'][0]['message']['content']
+    while True:
+        response21 = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo", 
+            messages=[{"role": "user", "content": prompt21}],
+            temperature=0.7,
+            #max_tokens=200 
+        )
+        habilidades_tecnicas = response21['choices'][0]['message']['content']
 
-
-
-    suggestions_data3 = safe_json_load(habilidades_tecnicas)
-    if suggestions_data3 is None:
-        return JSONResponse(content={"error": "Error en habilidades técnicas"}, status_code=400)
-        
+        suggestions_data3 = safe_json_load(habilidades_tecnicas)
+        if suggestions_data3 is not None:
+            break
     prompt22 = f"""
 
     Brinda sugerencias personalizadas de mejora por sección del CV, orientadas al rol de {puesto}. En esta parte, cubre lo siguiente:
