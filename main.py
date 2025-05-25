@@ -689,9 +689,10 @@ async def analizar_cv(pdf_url: str, puesto_postular: str):
             #max_tokens=200 
         )
         formacion_academica = response20['choices'][0]['message']['content']
+
         suggestions_data2 = safe_json_load(formacion_academica)
-            if suggestions_data2 is not None:
-                break
+        if suggestions_data2 is not None:
+            break
 
 
 
