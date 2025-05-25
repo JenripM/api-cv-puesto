@@ -752,6 +752,7 @@ async def analizar_cv(pdf_url: str, puesto_postular: str):
         suggestions_data3 = safe_json_load(habilidades_tecnicas)
         if suggestions_data3 is not None:
             break
+            
     prompt22 = f"""
 
     Brinda sugerencias personalizadas de mejora por sección del CV, orientadas al rol de {puesto}. En esta parte, cubre lo siguiente:
