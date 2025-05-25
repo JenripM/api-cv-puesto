@@ -680,8 +680,8 @@ async def analizar_cv(pdf_url: str, puesto_postular: str):
         Solo es de la formación academica., TODO LO QUE ANALIZAS ES RESPECTO AL CV, NO ME AGREGUES COSAS QUE NO SON
         {contenido}
     """
+    
     while True:
-
         response20 = openai.ChatCompletion.create(
             model="gpt-3.5-turbo", 
             messages=[{"role": "user", "content": prompt20}],
@@ -689,10 +689,6 @@ async def analizar_cv(pdf_url: str, puesto_postular: str):
             #max_tokens=200 
         )
         formacion_academica = response20['choices'][0]['message']['content']
-
-
-
-
         suggestions_data2 = safe_json_load(formacion_academica)
             if suggestions_data2 is not None:
                 break
@@ -752,7 +748,7 @@ async def analizar_cv(pdf_url: str, puesto_postular: str):
         suggestions_data3 = safe_json_load(habilidades_tecnicas)
         if suggestions_data3 is not None:
             break
-            
+
     prompt22 = f"""
 
     Brinda sugerencias personalizadas de mejora por sección del CV, orientadas al rol de {puesto}. En esta parte, cubre lo siguiente:
