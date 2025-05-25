@@ -4,7 +4,6 @@ import requests
 import tempfile  
 import matplotlib.pyplot as plt
 import numpy as np
-import os
 import re
 from fastapi import FastAPI, UploadFile, File
 import openai
@@ -20,6 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from datetime import datetime
 import json
 import shutil
+import zipfile
 
 load_dotenv()
 
@@ -1032,14 +1032,19 @@ async def analizar_cv(pdf_url: str, puesto_postular: str):
 
 @app.get("/backup-static/")
 async def backup_static():
-    zip_name = "static_backup.zip"
     static_folder = "static"
+    zip_buffer = io.BytesIO()
 
-    # Crear zip de la carpeta static (sobrescribe si existe)
-    shutil.make_archive("static_backup", 'zip', static_folder)
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+        for root, dirs, files in os.walk(static_folder):
+            for file in files:
+                file_path = os.path.join(root, file)
+                # Añadir archivo al zip con ruta relativa
+                arcname = os.path.relpath(file_path, static_folder)
+                zip_file.write(file_path, arcname=arcname)
 
-    # Devolver el archivo zip para descarga
-    return FileResponse(path=zip_name, filename=zip_name, media_type='application/zip')
+    zip_buffer.seek(0)
+    return StreamingResponse(zip_buffer, media_type="application/zip", headers={"Content-Disposition": "attachment; filename=static_backup.zip"})
 
 
 def extract_score_from_text(text):
