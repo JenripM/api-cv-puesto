@@ -146,7 +146,15 @@ def extract_address(text):
     else:
         return "No disponible"
 
+def es_json_valido(texto):
+    try:
+        # Intentamos cargar el texto como JSON
+        json.loads(texto)
+        return True
+    except json.JSONDecodeError:
+        return False
 
+        
 @app.get("/backup-static/")
 async def backup_static():
     static_folder = "static"
@@ -553,25 +561,23 @@ async def analizar_cv(pdf_url: str, puesto_postular: str):
 
 
     prompt9 = f"""
-    Actúa como un experto en redacción de currículums. Analiza únicamente el primer párrafo del perfil profesional que aparece a continuación.
+    Actúa como un experto en redacción de currículums. Analiza el contenido que te doy.
 
-    Ignora encabezados como “Perfil Profesional”, así como correos, teléfonos, links u otros datos de contacto. No incluyas esa información en el resultado.
 
     Tu objetivo es evaluar la redacción del texto actual y sugerir una versión mejorada que sea más clara, profesional y alineada con estándares actuales. Usa como guía el siguiente enfoque de redacción (no lo copies literalmente):
 
-    Debe empezar con: "Estudiante de “Número” ciclo de “Carrera” en la/el “Nombre de la Universidad”". Sino tiene la informacion. Indica a Estudiante de 'X' de la carrera 'Y' de la Universidad 'Z' como recomendacion. A partir de ahí, describe la identidad profesional de forma integral, combinando elementos personales como mentalidad, valores o trayectoria con intereses profesionales, fortalezas, experiencias relevantes o áreas de especialización. El objetivo es proyectar una imagen clara, auténtica y alineada con las metas profesionales del estudiante. Añade un toque personal que haga sentir al lector que conoce al candidato, pero manteniendo un tono profesional y directo. de acuerdo al puesto de {puesto}.
+    Debe empezar con: "Estudiante de “Número” ciclo de “Carrera” en la/el “Nombre de la Universidad”". Haz lo posible por ecnontrar esa informacion, en todo el texto. En caso no encuentres la informacino necesesaria indica algo como Estudiante de 'X' de la carrera 'Y' de la Universidad 'Z' como recomendacion. A partir de ahí, describe la identidad profesional de forma integral, combinando elementos personales como mentalidad, valores o trayectoria con intereses profesionales, fortalezas, experiencias relevantes o áreas de especialización. El objetivo es proyectar una imagen clara, auténtica y alineada con las metas profesionales del estudiante. Añade un toque personal que haga sentir al lector que conoce al candidato, pero manteniendo un tono profesional y directo. de acuerdo al puesto de {puesto}. en lo posible identifica la carrera y la universidad del candidato.
 
-    Recuerda 'X' seria reemplazado por el nombre de la carrera, y 'Y' por el nombre de la Universidad, para nada debes mencions 'X' 'Y' o 'Z' si o si debes obtener la Universidad o Carrera
     Devuelve solo un JSON con esta estructura:
 
     {{
-    "actual": "Texto actual del primer párrafo, sin encabezados ni contactos.",
+    "actual": "Texto actual del primer párrafo, sin encabezados ni contactos. Maximo unas 30 palabras",
     "recomendado": "Texto recomendado, redactado de forma más clara y profesional, alineado con el enfoque sugerido."
     }}
 
     Texto del perfil:
     \"\"\"{contenido}\"\"\"
-    """
+    """
 
     response9 = openai.ChatCompletion.create(
         model="gpt-3.5-turbo", 
@@ -635,46 +641,39 @@ async def analizar_cv(pdf_url: str, puesto_postular: str):
 
 
     prompt11 = f"""
-        Brinda sugerencias personalizadas de mejora por sección del CV, orientadas al rol de {puesto}.
+    Brinda sugerencias personalizadas de mejora por sección del CV, orientadas al rol de {puesto}.
 
-        En esta parte, cubre lo siguiente:
+    En esta parte, cubre lo siguiente:
 
-        - En "Empresa" indica el nombre de la empresa tal como aparece en el CV. Identificalo bien porfavor. No confundir con el rol. 
-        - En "Actual" incluye el texto completo de la experiencia laboral tal como figura en el CV.
-        - En "Recomendado" proporciona una versión mejorada del texto de experiencia laboral, aplicando el siguiente formato:
+    - En "Empresa" indica el nombre de la empresa tal como aparece en el CV. Identifícalo bien por favor. No confundir con el rol.
+    - En "Actual" incluye el texto completo de la experiencia laboral tal como figura en el CV.
+    - En "Recomendado" proporciona una versión mejorada del texto de experiencia laboral, aplicando el siguiente formato:
 
-            Logro profesional + Elemento de descripción de trabajo + Cómo contribuyó a la empresa + % o cifra específica (si aplica).
+        Logro profesional + Elemento de descripción de trabajo + Cómo contribuyó a la empresa + % o cifra específica (si aplica).
 
-            Además:
-            - Inicia con un verbo de acción fuerte.
-            - Alinea el contenido con las funciones o competencias clave para el rol de {puesto}.
-            - Usa el contenido original como base, no inventes logros no mencionados.
-            - Mejora redacción, impacto y claridad, sin agregar información no contenida en el texto original.
+        Además:
+        - Inicia con un verbo de acción fuerte.
+        - Alinea el contenido con las funciones o competencias clave para el rol de {puesto}.
+        - Usa el contenido original como base, no inventes logros no mencionados.
+        - Mejora redacción, impacto y claridad, sin agregar información no contenida en el texto original.
 
-        Devuélveme solo un JSON con el siguiente formato:
+    Devuélveme exclusivamente un JSON con el siguiente formato, sin ningún tipo de encabezado, explicación, texto adicional o marcas como --json:
 
-        [
-        {{
-            "Empresa": "Nombre de la empresa",
-            "Actual": "Texto original tal como aparece en el CV. El nombre del puesto y su descripción.",
-            "Recomendado": "Texto mejorado aplicando el formato indicado y orientado al puesto de {puesto}."
-        }},
-        {{
-            "Empresa": "Nombre de la empresa",
-            "Actual": "Texto original tal como aparece en el CV. El nombre del puesto y su descripción.",
-            "Recomendado": "Texto mejorado aplicando el formato indicado y orientado al puesto de {puesto}."
-        }}
-        ]
+    [
+    {{
+        "Empresa": "Nombre de la empresa",
+        "Actual": "Texto original tal como aparece en el CV. El nombre del puesto y su descripción.",
+        "Recomendado": "Texto mejorado aplicando el formato indicado y orientado al puesto de {puesto}."
+    }}
+    ]
 
-        Solo analiza la sección de experiencia laboral.  
-        NO INCLUYAS EDUCACION. SI SOLO HAY UNA EXPERIENCIA LABORAL, DEVUELVE UN JSON CON UN SOLO OBJETO.  
-        Si no hay experiencia laboral, devuelve un JSON con un único objeto que indique que no se encontró experiencia laboral.
-        No incluyas encabezados, datos de contacto ni formación académica.  
-        No agregues explicaciones fuera del JSON.  
-        Toda la información debe basarse únicamente en el contenido proporcionado a continuación:
+    Si hay más de una experiencia, incluye más objetos en el array.  
+    Si no hay experiencia laboral, devuelve un JSON con un solo objeto que indique claramente que no se encontró experiencia laboral.  
+    No incluyas educación, datos de contacto ni encabezados.  
+    Toda la información debe basarse únicamente en el contenido proporcionado a continuación:
 
-        \"\"\"{contenido}\"\"\"
-    """
+    \"\"\"{contenido}\"\"\"
+    """
     response11 = openai.ChatCompletion.create(
         model="gpt-3.5-turbo", 
         messages=[{"role": "user", "content": prompt11}],
@@ -1419,7 +1418,7 @@ def seccion_2(c, ancho, alto, y_inicio, datos_cv):
     c.setFillColor(colors.black)
     c.setFont("Poppins-Bold", 16)
     texto_principal = nombre
-    texto_ancho = c.stringWidth(texto_principal, "Poppins-Regular", 14)
+    texto_ancho = c.stringWidth(texto_principal, "Poppins-Regular", 16)
     text_x = x_div + (ancho_div - texto_ancho) / 2
     text_y = y_div + alto_div - 40
     c.drawString(text_x, text_y, texto_principal)
