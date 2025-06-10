@@ -638,7 +638,7 @@ async def analizar_cv(pdf_url: str, puesto_postular: str):
     # except json.JSONDecodeError as e:
     #     print("Error al decodificar JSON:", e)
     #     ajuste_puesto_json = None
-    # print(ajuste_puesto)
+    print(ajuste_puesto)
 
 
     prompt11 = f"""
@@ -1286,7 +1286,7 @@ def descargar_imagen(url: str, ruta_local: str):
     if response.status_code == 200:
         with open(ruta_local, "wb") as f:
             f.write(response.content)
-        #print("Imagen descargada correctamente.")
+        print("Imagen descargada correctamente.")
     else:
         print(f"Error al descargar la imagen: {response.status_code}")
 
@@ -1663,10 +1663,7 @@ def seccion_3(c, ancho, alto, y_inicio, datos_cv):
     )
 
     # Crear un único párrafo con los detalles de los errores separados por comas
-    if isinstance(detalles_errores, list) and all(isinstance(error, dict) and 'original' in error and 'sugerencia' in error for error in detalles_errores):
-        errores_completos = ", ".join([f"{error['original']} → {error['sugerencia']}" for error in detalles_errores])
-    else:
-        errores_completos = "No se encontraron errores o formato inválido"
+    errores_completos = ", ".join([f"{error['original']} → {error['sugerencia']}" for error in detalles_errores])
     par_errores_completos = Paragraph(errores_completos, estilo_errores)
 
     # Obtener el tamaño del párrafo
