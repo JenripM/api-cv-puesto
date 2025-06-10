@@ -561,7 +561,7 @@ async def analizar_cv(pdf_url: str, puesto_postular: str):
 
     Debe empezar con: "Estudiante de “Número” ciclo de “Carrera” en la/el “Nombre de la Universidad”". Sino tiene la informacion. Indica a Estudiante de 'X' de la carrera 'Y' de la Universidad 'Z' como recomendacion. A partir de ahí, describe la identidad profesional de forma integral, combinando elementos personales como mentalidad, valores o trayectoria con intereses profesionales, fortalezas, experiencias relevantes o áreas de especialización. El objetivo es proyectar una imagen clara, auténtica y alineada con las metas profesionales del estudiante. Añade un toque personal que haga sentir al lector que conoce al candidato, pero manteniendo un tono profesional y directo. de acuerdo al puesto de {puesto}.
 
-    Recuerda 'X' seria reemplazado por el nombre de la carrera, y 'Y' por el nombre de la Universidad
+    Recuerda 'X' seria reemplazado por el nombre de la carrera, y 'Y' por el nombre de la Universidad, para nada debes mencions 'X' 'Y' o 'Z' si o si debes obtener la Universidad o Carrera
     Devuelve solo un JSON con esta estructura:
 
     {{
@@ -1492,7 +1492,7 @@ def seccion_2(c, ancho, alto, y_inicio, datos_cv):
         fontSize=10,
         leading=12,
         alignment=TA_JUSTIFY,  # Justificar el texto
-        spaceBefore=25,  # Espacio antes del análisis
+        spaceBefore=10,  # Espacio antes del análisis
         spaceAfter=5,
     )
 
@@ -2298,7 +2298,7 @@ def seccion_10(c, ancho, alto, y_inicio, datos_cv):
         leading=11,
         alignment=TA_JUSTIFY,
         spaceBefore=0,
-        spaceAfter=0,
+        spaceAfter=5,
     )
 
     # Cálculo dinámico del alto total basado en el contenido
@@ -2403,6 +2403,9 @@ def seccion_10(c, ancho, alto, y_inicio, datos_cv):
 
         # Ajustar y para siguiente fila
         siguiente_y = min(y_emp, y_act_start - h_act, y_reco_start - h_reco) - 20
+
+        # Agregar espacio antes de la línea
+        siguiente_y -= 10  # Puedes ajustar este valor a la cantidad de espacio que desees
 
         # Línea separadora
         if i < len(experiencias) - 1:
