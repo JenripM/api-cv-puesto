@@ -1521,11 +1521,7 @@ def seccion_3(c, ancho, alto, y_inicio, datos_cv):
     
     errores = str(datos_cv.get('spelling', {}).get('errores', 'Paginas no disponible'))
     erroresPagination = datos_cv.get('spelling', {}).get('comentario', 'Comentario no disponible')
-    
-    if isinstance(detalles_errores, list) and all(isinstance(error, dict) and 'original' in error and 'sugerencia' in error for error in detalles_errores):
-        errores_completos = ", ".join([f"{error['original']} → {error['sugerencia']}" for error in detalles_errores])
-    else:
-        errores_completos = "No se encontraron errores o formato inválido"
+    detalles_errores = datos_cv.get('spelling', {}).get('detalle_errores', [])
 
     margen_horizontal = 50
     espacio_entre_divs = 20
@@ -1667,7 +1663,10 @@ def seccion_3(c, ancho, alto, y_inicio, datos_cv):
     )
 
     # Crear un único párrafo con los detalles de los errores separados por comas
-    errores_completos = ", ".join([f"{error['original']} → {error['sugerencia']}" for error in detalles_errores])
+    if isinstance(detalles_errores, list) and all(isinstance(error, dict) and 'original' in error and 'sugerencia' in error for error in detalles_errores):
+        errores_completos = ", ".join([f"{error['original']} → {error['sugerencia']}" for error in detalles_errores])
+    else:
+        errores_completos = "No se encontraron errores o formato inválido"
     par_errores_completos = Paragraph(errores_completos, estilo_errores)
 
     # Obtener el tamaño del párrafo
