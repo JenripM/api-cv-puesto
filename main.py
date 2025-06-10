@@ -535,6 +535,7 @@ async def analizar_cv(pdf_url: str, puesto_postular: str):
 
     Debe empezar con: "Estudiante de “Número” ciclo de “Carrera” en la/el “Nombre de la Universidad”". Sino tiene la informacion. Indica a Estudiante de 'X' de la carrera 'Y' de la Universidad 'Z' como recomendacion. A partir de ahí, describe la identidad profesional de forma integral, combinando elementos personales como mentalidad, valores o trayectoria con intereses profesionales, fortalezas, experiencias relevantes o áreas de especialización. El objetivo es proyectar una imagen clara, auténtica y alineada con las metas profesionales del estudiante. Añade un toque personal que haga sentir al lector que conoce al candidato, pero manteniendo un tono profesional y directo. de acuerdo al puesto de {puesto}.
 
+    Recuerda 'X' seria reemplazado por el nombre de la carrera, y 'Y' por el nombre de la Universidad
     Devuelve solo un JSON con esta estructura:
 
     {{
