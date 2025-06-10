@@ -397,7 +397,7 @@ async def analizar_cv(pdf_url: str, puesto_postular: str):
     )
     filename_response = response4['choices'][0]['message']['content']
 
-    print("filename_response", filename_response)
+   # print("filename_response", filename_response)
 
     prompt5 = f"""
     Actúa como un reclutador profesional experto en evaluación de currículums.
@@ -638,7 +638,7 @@ async def analizar_cv(pdf_url: str, puesto_postular: str):
     # except json.JSONDecodeError as e:
     #     print("Error al decodificar JSON:", e)
     #     ajuste_puesto_json = None
-    print(ajuste_puesto)
+    # print(ajuste_puesto)
 
 
     prompt11 = f"""
@@ -1286,7 +1286,7 @@ def descargar_imagen(url: str, ruta_local: str):
     if response.status_code == 200:
         with open(ruta_local, "wb") as f:
             f.write(response.content)
-        print("Imagen descargada correctamente.")
+        #print("Imagen descargada correctamente.")
     else:
         print(f"Error al descargar la imagen: {response.status_code}")
 
@@ -1521,7 +1521,11 @@ def seccion_3(c, ancho, alto, y_inicio, datos_cv):
     
     errores = str(datos_cv.get('spelling', {}).get('errores', 'Paginas no disponible'))
     erroresPagination = datos_cv.get('spelling', {}).get('comentario', 'Comentario no disponible')
-    detalles_errores = datos_cv.get('spelling', {}).get('detalle_errores', [])
+    
+    if isinstance(detalles_errores, list) and all(isinstance(error, dict) and 'original' in error and 'sugerencia' in error for error in detalles_errores):
+        errores_completos = ", ".join([f"{error['original']} → {error['sugerencia']}" for error in detalles_errores])
+    else:
+        errores_completos = "No se encontraron errores o formato inválido"
 
     margen_horizontal = 50
     espacio_entre_divs = 20
