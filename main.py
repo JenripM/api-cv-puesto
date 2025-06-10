@@ -21,6 +21,8 @@ import json
 import shutil
 import zipfile
 import io
+import json
+import re
 
 load_dotenv()
 
@@ -30,404 +32,21 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-class PDF(FPDF):
-    def header(self):
-        image_url = "https://static.wixstatic.com/media/6ce38e_68ce9c2cf3f346a0a7a7bdee0a5ad2dd~mv2.png/v1/fill/w_202,h_44,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/MyWorkIn%20web.png"
-        response = requests.get(image_url)
-        
-        if response.status_code == 200:
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp_file:
-                tmp_file.write(response.content)
-                tmp_file_path = tmp_file.name 
-
-            image_width = 40
-            image_height = 8 
-
-            self.image(tmp_file_path, 10, 8, image_width, image_height)
-        else:
-            self.cell(0, 10, 'Imagen no encontrada', 0, 1, 'C')
-        
-        self.set_font('Arial', 'B', 12)
-        self.cell(0, 10, 'workin2.com', 0, 1, 'R')  
-        self.ln(5)  
-
-    def add_bar_chart(self, title, score):
-        temp_dir = tempfile.mkdtemp()
-
-        fig, ax = plt.subplots(figsize=(6, 1))  
-        ax.barh([0], [score], color='skyblue')
-        ax.set_xlim(0, 100)  
-        ax.set_yticks([]) 
-        ax.set_xlabel('Puntuación')
-        ax.set_title(title)
-        
-        chart_path = os.path.join(temp_dir, "chart.png")
-        plt.savefig(chart_path, format='png', bbox_inches='tight')
-        plt.close(fig)
-
-        self.image(chart_path, x=10, w=180)
-        self.ln(5) 
-
-
-    def add_alignment_bar_chart(self, alignment_score):
-        # Asegurarse de que la puntuación esté entre 0 y 100
-        alignment_score = min(max(alignment_score, 0), 100)
-
-        # Crear un DataFrame para Altair
-        data = pd.DataFrame({
-            'category': ['Alineación'],
-            'score': [alignment_score]
-        })
-
-        # Crear el gráfico con Altair
-        chart = alt.Chart(data).mark_bar(color='#8CBA80').encode(
-            x=alt.X('score:Q', scale=alt.Scale(domain=[0, 100]), axis=alt.Axis(title='Porcentaje de Alineación')),
-            y=alt.Y('category:N', axis=alt.Axis(title=''))
-        ).properties(width=600, height=50)
-
-        temp_dir = tempfile.mkdtemp()
-        chart_path = os.path.join(temp_dir, "alignment_chart.png")
-        chart.save(chart_path)
-
-        # Insertar la imagen en el PDF
-        self.image(chart_path, x=10, w=180)
-        self.ln(5) 
-
-def safe_json_load(data):
-    try:
-        # Intentamos cargar el JSON
-        return json.loads(data)
-    except json.JSONDecodeError:
-        # Si ocurre un error, retornamos None o el valor que prefieras
-        return None
-        
-def create_pdf(analysis_text: str,
-                score: int,
-                suitability_analysis: str,
-                suitability_score: int,
-                alignment_score: int,
-                cv_approach_analysis: str,
-                cv_improvement_suggestions: str,
-                candidate_name: str,
-                observations_and_opportunities: str, 
-                elements_clave:str,
-                cursos_ceritificaciones:str,
-                formato_diseno_cv:str,
-                areas_mejora:str,
-                recomendaciones_especificas:str,
-                puesto:str,
-                formacion_academica:str,
-                habilidades_tecnicas:str,
-                certificaciones:str,
-                cv_rating:str):
-    pdf = PDF()
-    pdf.add_page()
-
-    pdf.add_font('Poppins-Regular', '', './fonts/Poppins-Regular.ttf', uni=True)
-    pdf.add_font('Poppins-Bold', '', './fonts/Poppins-Bold.ttf', uni=True)
-
-    pdf.ln(1)  
-    pdf.set_font("Poppins-Bold", '', 16)
-    pdf.set_text_color(3,70,123)  
-    pdf.cell(0, 15, "INFORME DE REVISIÓN DE CV", 0, 1, 'C')  
-
-    pdf.ln(1)  
-    pdf.set_font("Poppins-Bold", '', 12)
-    pdf.set_text_color(0, 0, 0)  
-    # Primero, agregamos el nombre del candidato (a la izquierda)
-    pdf.cell(70, 10, f"{candidate_name}", 0, 0, 'L')  # Alineado a la izquierda
-    pdf.ln(10)  
-    # Luego, agregamos el puesto (en el centro)
-    puesto = puesto.replace('_', ' ')
-    pdf.cell(70, 10, f"{puesto}", 0, 0, 'I')  # Alineado al centro
-
-    pdf.set_font("Poppins-Bold", '', 15)  # Cambiamos el tamaño de la fuente a 20 para el cv_rating
-
-    circle_radius = 20
-    circle_x = 180  
-    circle_y = pdf.get_y() + 5 
-    pdf.set_line_width(1)
-    # Dibuja el círculo
-    pdf.set_draw_color(2, 69, 121)  
-    pdf.set_fill_color(0, 0, 0)  
-    pdf.ellipse(circle_x - circle_radius, circle_y - circle_radius, 2 * circle_radius, 2 * circle_radius)
-
-    pdf.set_font("Poppins-Bold", '', 25)  
-
-    pdf.set_text_color(2, 69, 121)  
-    cv_rating_text = f"{cv_rating} / 10"  
-    pdf.text(circle_x - 10, circle_y + 4, cv_rating_text)  
-
-    pdf.set_font("Poppins-Bold", '', 12)  
-
-    pdf.ln(32) 
-    pdf.set_draw_color(255, 165, 0)  
-    pdf.set_line_width(0.5)  
-    pdf.line(10, pdf.get_y(), 200, pdf.get_y())  
-    
-    
-    pdf.ln(2) 
-    pdf.set_font("Poppins-Bold", '', 14)
-    pdf.set_text_color(0, 0, 0)  
-    pdf.cell(0, 15, "SECCIÓN 1: RESUMEN DEL CANDIDATO", 0, 1, 'I') 
-
-    pdf.set_text_color(0, 0, 0)  
-    pdf.set_auto_page_break(auto=True, margin=15)
-    pdf.set_font("Poppins-Regular", size=12)
-
-    pdf.multi_cell(0, 5, analysis_text)
-
-    pdf.ln(10)
-    pdf.set_font("Poppins-Bold", '', 14) 
-    pdf.set_text_color(0, 0, 0)  
-    pdf.cell(0, 15, "SECCIÓN 2: ANÁLISIS DE ADECUACIÓN AL ROL", 0, 1, 'I')  
-
-    pdf.ln(1)  
-    pdf.set_font("Poppins-Bold", '', 12)
-    pdf.set_text_color(0, 0, 0)  
-    pdf.cell(0, 15, "Brechas frente al rol", 0, 1, 'I') 
-
-    pdf.set_font("Poppins-Regular", '', 12)  
-    pdf.set_text_color(0, 0, 0)  
-    pdf.multi_cell(0, 5, suitability_analysis)  
-
-
-    pdf.ln(2)  
-    pdf.set_font("Poppins-Bold", '', 12)
-    pdf.set_text_color(0, 0, 0)  
-    pdf.cell(0, 15, "Alineación con el puesto", 0, 1, 'I') 
-
-    pdf.set_text_color(0, 0, 0)  
-    pdf.set_auto_page_break(auto=True, margin=15)
-    pdf.set_font("Poppins-Regular", size=12)
-
-    #pdf.multi_cell(0, 10, f"Porcentaje de alineación: {alignment_score}%")
-
-    pdf.add_alignment_bar_chart(alignment_score)
-
-
-    #pdf.ln(2)  
-   # pdf.set_font("Poppins-Bold", '', 12)
-    #pdf.set_text_color(0, 0, 0)  
-    #pdf.cell(0, 15, "Enfoque del CV", 0, 1, 'I') 
-
-    #pdf.set_font("Poppins-Regular", '', 12)
-    #pdf.set_text_color(0, 0, 0)  
-   # pdf.multi_cell(0, 5, cv_approach_analysis) 
-
-
-
-    pdf.ln(2)  
-    pdf.set_font("Poppins-Bold", '', 12)
-    pdf.set_text_color(0, 0, 0)  
-    pdf.cell(0, 15, "SECCIÓN 3: SUGERENCIAS DE MEJORA POR SECCIÓN DEL CV", 0, 1, 'I')
-
-    pdf.ln(2)  
-    pdf.set_font("Poppins-Bold", '', 12)
-    pdf.set_text_color(0, 0, 0)  
-    pdf.cell(0, 15, "1. Experiencia Laboral", 0, 1, 'I') 
-
-    pdf.set_font("Poppins-Regular", '', 12)
-    pdf.set_text_color(0, 0, 0)  
-    
-    suggestions_data = json.loads(cv_improvement_suggestions)
-
-
-    
-    # Ahora puedes manipularlo como una lista de diccionarios
-    for item in suggestions_data:
-        pdf.set_font("Poppins-Bold", '', 12)
-        pdf.cell(0, 15, "Empresa:", 0, 1, 'I') 
-        pdf.ln(0)  
-        pdf.set_font("Poppins-Regular", '', 12)
-        pdf.multi_cell(0, 5, f"{item['Empresa']}")
-
-        pdf.set_font("Poppins-Bold", '', 12)
-        pdf.cell(0, 15, "CV Actual:", 0, 1, 'I') 
-        pdf.ln(0)  
-        pdf.set_font("Poppins-Regular", '', 12)
-        pdf.multi_cell(0, 5, f" {item['Actual']}")
-
-        pdf.set_font("Poppins-Bold", '', 12)
-        pdf.cell(0, 15, "Resultado Medible:", 0, 1, 'I')
-        pdf.ln(0)   
-        pdf.set_font("Poppins-Regular", '', 12)
-        pdf.multi_cell(0, 5, f"{item['Evaluación']}")
-
-        pdf.set_font("Poppins-Bold", '', 12)
-        pdf.cell(0, 15, "Sugerencia:", 0, 1, 'I') 
-        pdf.ln(0)  
-        pdf.set_font("Poppins-Regular", '', 12)
-        pdf.multi_cell(0, 5, f"{item['Sugerencia']}")
-        pdf.ln(5)  
-
-
-    pdf.ln(2)  
-    pdf.set_font("Poppins-Bold", '', 12)
-    pdf.set_text_color(0, 0, 0)  
-    pdf.cell(0, 15, "2. Formación Academica", 0, 1, 'I') 
-
-
-    pdf.set_font("Poppins-Regular", '', 12)
-    pdf.set_text_color(0, 0, 0)  
-
-
-    suggestions_data2 = json.loads(formacion_academica)
-
-
-    for item in suggestions_data2:
-        pdf.set_font("Poppins-Bold", '', 12)
-        pdf.cell(0, 15, "CV Actual:", 0, 1, 'I') 
-        pdf.ln(0)  
-        pdf.set_font("Poppins-Regular", '', 12)
-        pdf.multi_cell(0, 5, f" {item['Actual']}")
-
-        pdf.set_font("Poppins-Bold", '', 12)
-        pdf.cell(0, 15, "Evaluación:", 0, 1, 'I')
-        pdf.ln(0)   
-        pdf.set_font("Poppins-Regular", '', 12)
-        pdf.multi_cell(0, 5, f"{item['Evaluación']}")
-
-        pdf.set_font("Poppins-Bold", '', 12)
-        pdf.cell(0, 15, "Sugerencia:", 0, 1, 'I') 
-        pdf.ln(0)  
-        pdf.set_font("Poppins-Regular", '', 12)
-        pdf.multi_cell(0, 5, f"{item['Sugerencia']}")
-        pdf.ln(5)  
-
-    pdf.ln(2)  
-    pdf.set_font("Poppins-Bold", '', 12)
-    pdf.set_text_color(0, 0, 0)  
-    pdf.cell(0, 15, "3. Habilidades", 0, 1, 'I') 
-
-
-    pdf.set_font("Poppins-Regular", '', 12)
-    pdf.set_text_color(0, 0, 0)  
-
-
-
-    suggestions_data3 = json.loads(habilidades_tecnicas)
-
-
-    for item in suggestions_data3:
-        pdf.set_font("Poppins-Bold", '', 12)
-        pdf.cell(0, 15, "CV Actual:", 0, 1, 'I') 
-        pdf.ln(0)  
-        pdf.set_font("Poppins-Regular", '', 12)
-        pdf.multi_cell(0, 5, f" {item['Actual']}")
-
-        pdf.set_font("Poppins-Bold", '', 12)
-        pdf.cell(0, 15, "Evaluación:", 0, 1, 'I')
-        pdf.ln(0)   
-        pdf.set_font("Poppins-Regular", '', 12)
-        pdf.multi_cell(0, 5, f"{item['Evaluación']}")
-
-        pdf.set_font("Poppins-Bold", '', 12)
-        pdf.cell(0, 15, "Sugerencia:", 0, 1, 'I') 
-        pdf.ln(0)  
-        pdf.set_font("Poppins-Regular", '', 12)
-        pdf.multi_cell(0, 5, f"{item['Sugerencia']}")
-        pdf.ln(5)  
-
-
-   # pdf.ln(2)  
-   # pdf.set_text_color(0, 0, 0)  
-   # pdf.set_font("Poppins-Bold", '', 12)
-   # pdf.set_text_color(0, 0, 0)  
-   # pdf.cell(0, 15, "4. Certificaciones", 0, 1, 'I') 
-
-   # pdf.set_font("Poppins-Regular", '', 12)
-   # pdf.set_text_color(0, 0, 0)  
-   # pdf.multi_cell(0, 5, certificaciones)
-
-
-   # pdf.ln(2)  
-    #pdf.set_font("Poppins-Bold", '', 12)
-   # pdf.set_text_color(0, 0, 0)  
-   # pdf.cell(0, 15, "SECCIÓN 4: OBSERVACIONES Y OPORTUNIDADES DE MEJORA", 0, 1, 'I')
-
-
-    #pdf.ln(2)  
-    #pdf.set_font("Poppins-Bold", '', 12)
-    #pdf.set_text_color(0, 0, 0)  
-    #pdf.cell(0, 15, "Fortalezas", 0, 1, 'I') 
-
-    #pdf.set_font("Poppins-Regular", '', 12)
-    #pdf.set_text_color(0, 0, 0)  
-    #pdf.multi_cell(0, 5, observations_and_opportunities)
-
-    #pdf.ln(2)  
-    #pdf.set_font("Poppins-Bold", '', 12)
-    #pdf.set_text_color(0, 0, 0)  
-    #pdf.cell(0, 15, "Áreas de mejora", 0, 1, 'I') 
-
-    #pdf.set_font("Poppins-Regular", '', 12)
-    #pdf.set_text_color(0, 0, 0)  
-    #pdf.multi_cell(0, 5, areas_mejora) 
-
-
-    #pdf.ln(2)  
-    #pdf.set_font("Poppins-Bold", '', 12)
-    #pdf.set_text_color(0, 0, 0)  
-    #pdf.cell(0, 15, "Recomendaciones especificas", 0, 1, 'I') 
-
-    #pdf.set_font("Poppins-Regular", '', 12)
-    #pdf.set_text_color(0, 0, 0)  
-    #pdf.multi_cell(0, 5, recomendaciones_especificas) 
-
-
-
-
-
-    pdf.ln(2)  
-    pdf.set_font("Poppins-Bold", '', 12)
-    pdf.set_text_color(0, 0, 0)  
-    pdf.cell(0, 15, "SECCIÓN 4:  RECOMENDACIONES ADICIONALES", 0, 1, 'I')
-
-    pdf.ln(2)  
-    pdf.set_font("Poppins-Bold", '', 12)
-    pdf.set_text_color(0, 0, 0)  
-    pdf.cell(0, 15, "Palabras clave para filtros ATS", 0, 1, 'I') 
-
-    pdf.set_font("Poppins-Regular", '', 12)
-    pdf.set_text_color(0, 0, 0)  
-    pdf.multi_cell(0, 5, elements_clave)
-
-    pdf.ln(2)  
-    pdf.set_font("Poppins-Bold", '', 12)
-    pdf.set_text_color(0, 0, 0)  
-    pdf.cell(0, 15, "Cursos y certificaciones recomendados  ", 0, 1, 'I') 
-
-    pdf.set_font("Poppins-Regular", '', 12)
-    pdf.set_text_color(0, 0, 0)  
-    pdf.multi_cell(0, 5, cursos_ceritificaciones)
-
-    pdf.ln(2)  
-    pdf.set_font("Poppins-Bold", '', 12)
-    pdf.set_text_color(0, 0, 0)  
-    pdf.cell(0, 15, "Formato del CV ", 0, 1, 'I') 
-
-    pdf.set_font("Poppins-Regular", '', 12)
-    pdf.set_text_color(0, 0, 0)  
-    pdf.multi_cell(0, 5, formato_diseno_cv)
-
-
-    pdf.ln(10) 
-    pdf.set_font("Poppins-Bold", '', 10) 
-    pdf.set_text_color(3,70,123)  
-    pdf.cell(0, 10, "Gracias Por Utilizar Los Servicios De MyWorkIn.", 0, 1, 'C')
-
-    pdf.ln(1)  
-    pdf.set_font("Poppins-Bold", '', 10)  
-    pdf.set_text_color(255, 165, 0) 
-    pdf.multi_cell(0, 10, "Para Mas Información, visiten en workin2.com o contactanos en diego@workin2.com", align='C')
-
-    pdf_output = BytesIO()
-    pdf_output.write(pdf.output(dest='S').encode('latin1')) 
-    pdf_output.seek(0)  
-
-    return pdf_output
-
+from urllib.parse import urlparse
+
+def obtener_nombre_archivo_desde_url(url: str) -> str:
+    """
+    Extrae el nombre del archivo desde una URL.
+    Ej: https://myworkinpe.lat/pdfs/cv_1744315148575_4af9adfd.pdf → cv_1744315148575_4af9adfd.pdf
+    """
+    parsed_url = urlparse(url)
+    return parsed_url.path.split("/")[-1]
+
+def clean_and_load_json(response_str):
+    # Elimina bloques de markdown como ```json ... ```
+    cleaned = re.sub(r"```(?:json)?\n?", "", response_str.strip(), flags=re.IGNORECASE)
+    cleaned = re.sub(r"```$", "", cleaned.strip())
+    return json.loads(cleaned)
 
 @app.get("/analizar-cv/")
 async def analizar_cv(pdf_url: str, puesto_postular: str):
@@ -440,96 +59,47 @@ async def analizar_cv(pdf_url: str, puesto_postular: str):
     
     pdf_content = BytesIO(response.content)
 
-    contenido = extract_text_from_pdf(pdf_content)
+    contenido, num_paginas = extract_text_from_pdf(pdf_content)
 
-
-    prompt6 = f"""
-    Eres un reclutador profesional. Por favor, extrae el nombre completo del candidato que aparece en el CV para el puesto de {puesto}. El nombre debe ser identificado con precisión, considerando los posibles formatos y variaciones en la presentación de la información del candidato dentro del documento. 
-    Solamente dame el nombre completo
-
-    Ejemplo: (Solamente dame eso)
-    Diego Rodríguez Franco​
-    {contenido}
-    """
-    
-    response6 = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo", 
-        messages=[{"role": "user", "content": prompt6}],
-        temperature=0.7,
-        #max_tokens=50  
-    )
-    
-    candidate_name = response6['choices'][0]['message']['content'].strip()
-
+    #  return JSONResponse(contenido)
 
 
     prompt1 = f"""
-    Eres un reclutador profesional. Analiza el siguiente currículum vitae para el puesto de {puesto}.
-    Debes proporcionar el siguiente análisis detallado del CV:
+    Eres un reclutador profesional. Recibirás el perfil de un candidato en formato JSON y deberás evaluar su idoneidad para el puesto de "{puesto}".
 
-    Genera un resumen claro, atractivo y profesional que destaque el potencial del candidato, alineando su perfil con habilidades transferibles, conocimientos, logros formativos y actitud, incluso si no tiene experiencia directa en el cargo. Asegúrate de cubrir:
-    1. Título y formación profesional (ej. “Ingeniero industrial”).
-    2. Experiencia relevante o transferible de acuerdo con la posición que busca.
-    3. Habilidades duras y blandas destacadas.
-    4. Alineación con el rol postulado.
-    5. Valor agregado que puede aportar.
+    Evalúa cuidadosamente estos aspectos:
+    - Experiencia laboral relevante para el puesto.
+    - Habilidades técnicas y blandas necesarias.
+    - Formación académica y complementaria alineada al rol.
+    - Actitudes y aptitudes generales que favorezcan un buen desempeño en el puesto.
 
-    Tiene que ser un resumen no tan largo, Un parrafo, Maximo 5 lineas
+    Con base en tu análisis, responde exclusivamente con un **objeto JSON** con la siguiente estructura:
+
+    {{
+        "porcentaje": número entre 0 y 100, indicando qué tan alineado está el perfil con el puesto,
+        "estado": una leyenda basada en el porcentaje, siguiendo esta escala:
+            - 75 o más: "Aprobado"
+            - Entre 50 y 74: "Con potencial"
+            - Menor a 50: "No aprobado",
+        "analisis": un único párrafo breve, que comience con "Tu CV", y que exprese una sola idea clara sobre el punto más relevante del perfil (ya sea una fortaleza o una oportunidad de mejora)
+    }}
+
+    Ejemplo de salida válida:
+
+    {{
+        "porcentaje": 78,
+        "estado": "Aprobado",
+        "analisis": "Tu CV demuestra actitud, base técnica y experiencias que suman. Pero hoy describe tareas, no comunica
+        impacto. Con ajustes en redacción, métricas, lenguaje sectorial y presentación, puedes convertir un perfil
+        prometedor en uno competitivo."
+    }}
+
+    No incluyas ningún otro texto fuera del JSON.
+
+    A continuación, el perfil del candidato:
+
     {contenido}
     """
-
-    prompt2 = f"""
-
-    Compáralo con los requisitos habituales para el rol de {puesto}, e identifica las principales 
-    brechas lo que se espera para desempeñarse con éxito en ese cargo. 
-    Clasifica las brechas en las siguientes categorías: 
-    Habilidades técnicas      Todo en relación con el {puesto}
-    Conocimientos del sector o industria      Todo en relación con el {puesto}
-    Certificaciones o formación clave      Todo en relación con el {puesto}
-    Herramientas, plataformas o tecnologías     Todo en relación con el {puesto}
-
-    Para cada brecha, proporciona:     
-    Una descripción clara y específica. 
-    Una recomendación concreta, práctica y de aplicación inmediata o a corto plazo. 
-
-    Formato de salida (una línea por brecha, un comentario por categoría): 
-
-    Habilidad técnica: [nombre] - [Descripción].  
-    Recomendación: [acción concreta].  
-
-    Conocimiento sectorial: [nombre] - [Descripción].  
-    Recomendación: [acción concreta].  
-
-    Certificación/formación: [nombre] - [Descripción].  
-    Recomendación: [acción concreta].  
-
-    Herramienta/tecnología: [nombre] - [Descripción].  
-    Recomendación: [acción concreta].  
-
-    Sé breve, profesional y enfocado en el {puesto}.
-    Cada punto debe estar separado en líneas distintas para claridad.
-
-    Todo en relación con el {puesto}
-    """
-
-    prompt3 = f"""
-    Eres un reclutador profesional. Analiza el perfil del candidato para el puesto de {puesto}. Evalúa lo siguiente para determinar qué tan adecuado es el candidato para el puesto:
-
-    - Experiencia laboral relevante.
-    - Habilidades necesarias para el rol de {puesto}.
-    - Capacitación y formación complementaria.
-    - Actitudes y aptitudes generales relacionadas con el {puesto}.
-
-    Luego, calcula un porcentaje de alineación, que debe ser un número entre 0 y 100, indicando el grado de adecuación entre el perfil del candidato y el puesto. 
-
-    Por favor, responde con solo un número que represente el porcentaje de encaje.
-
-    Por ejemplo: 89 
-
-    Solo debe ser un numero
-    {contenido}
-    """
-
 
     response1 = openai.ChatCompletion.create(
         model="gpt-3.5-turbo", 
@@ -537,352 +107,252 @@ async def analizar_cv(pdf_url: str, puesto_postular: str):
         temperature=0.7,
        # max_tokens=100
     )
-    analysis_text = response1['choices'][0]['message']['content']
+    mainly_analysis = response1['choices'][0]['message']['content']
+
+
+    prompt2 = f"""
+    Eres un reclutador senior con amplia experiencia en la evaluación de currículums para procesos de selección competitivos.
+
+    Tu tarea es analizar únicamente el número de páginas de un CV y emitir una evaluación profesional, comenzando siempre con una frase clara de diagnóstico general.
+
+    Primero debes comenzar el comentario con una de estas frases (elige según el caso):
+    - "¡Tu CV tiene el tamaño ideal!"
+    - "Tu CV es demasiado extenso y puede jugar en contra."
+    - "Tu CV tiene buen contenido, pero se puede optimizar en longitud."
+
+    Luego, continúa con una observación más desarrollada y fundamentada, teniendo en cuenta:
+    - Si facilita o no una lectura ágil por parte del reclutador.
+    - Si permite resaltar la información clave.
+    - Si sigue buenas prácticas de presentación ejecutiva (especialmente para perfiles no académicos).
+
+    Responde con un único objeto JSON que contenga:
+    - `"paginas"`: el número total de páginas del CV (ya proporcionado).
+    - `"comentario"`: la evaluación clara y profesional, iniciando con una de las frases mencionadas y luego desarrollando una recomendación breve pero experta.
+
+    No incluyas ningún texto fuera del JSON.
+
+    Número de páginas del CV: {num_paginas}
+    """
+
 
     response2 = openai.ChatCompletion.create(
         model="gpt-3.5-turbo", 
         messages=[{"role": "user", "content": prompt2}],
         temperature=0.7,
-        #max_tokens=150
+       # max_tokens=100
     )
-    suitability_analysis = response2['choices'][0]['message']['content']
+    pagination = response2['choices'][0]['message']['content']
 
-    score_match = re.search(r'Puntuación final:\s*(\d+)', analysis_text)
-    suitability_score_match = re.search(r'Porcentaje de encaje:\s*(\d+)', suitability_analysis)
 
-    score = 0
-    suitability_score = 0
 
-    if score_match:
-        score = int(score_match.group(1))
     
-    if suitability_score_match:
-        suitability_score = int(suitability_score_match.group(1))
+    prompt3 = f"""
+    Actúa como un corrector profesional de ortografía con experiencia en revisión de currículums (CVs).
+
+    Analiza el siguiente texto y detecta únicamente errores ortográficos reales.
+
+    Debes ignorar lo siguiente:
+    - Enlaces o URLs (por ejemplo: https://..., http://...).
+    - Correos electrónicos y nombres de usuario.
+    - Nombres propios de personas, empresas, instituciones, países, etc.
+    - Siglas y abreviaciones en mayúsculas (como UX, TI, HTML).
+    - Uso de mayúsculas al inicio de oración (no lo consideres error).
+
+    Detecta únicamente errores como:
+    - Palabras mal escritas o con letras cambiadas.
+    - Tildes mal colocadas o faltantes.
+    - Errores ortográficos frecuentes (como "desarollo" en lugar de "desarrollo").
+
+    Tu respuesta debe ser exclusivamente un JSON con la siguiente estructura:
+
+    {{
+    "errores": número total de errores encontrados (entero),
+    "comentario": comentario correspondiente según cantidad de errores,
+    "detalle_errores": si hay errores, una lista con objetos en el formato:
+        [
+        {{
+            "original": "palabra con error",
+            "sugerencia": "palabra corregida"
+        }}
+        ],
+        si no hay errores, debe ser null
+    }}
+
+    Solo incluye en "detalle_errores" palabras donde "original" y "sugerencia" sean diferentes.
+
+    No agregues texto fuera del JSON.
+
+    Texto a analizar:
+    \"\"\"{contenido}\"\"\"
+    """
 
 
     response3 = openai.ChatCompletion.create(
         model="gpt-3.5-turbo", 
         messages=[{"role": "user", "content": prompt3}],
         temperature=0.7,
-        #max_tokens=100  
+        #max_tokens=50  
     )
-    alignment_analysis = response3['choices'][0]['message']['content']
+    
+    spelling = response3['choices'][0]['message']['content']
 
-    alignment_score = 0
-    try:
-        # Asegurarse de que alignment_score sea un número entero
-        alignment_score_str = response3['choices'][0]['message']['content'].strip().replace('%', '')
-        alignment_score = int(alignment_score_str)  # Convertir a entero
-    except (ValueError, IndexError) as e:
-        print(f"Error al obtener la puntuación de alineación: {e}")
-
-    prompt4 = f"""
-    Enfoque del CV:
-    Utilizando el porcentaje de encaje de {alignment_score}% para el puesto de {puesto}, genera un análisis sobre cómo el perfil del candidato se ajusta a este puesto. Considera lo siguiente:
-
-    - Habilidades generales y específicas que tiene el candidato.
-    - Áreas donde tiene una fuerte alineación con el puesto (por ejemplo, habilidades analíticas, gestión de proyectos).
-    - Áreas donde el candidato tiene desajustes importantes (por ejemplo, falta de experiencia específica en {puesto}).
-
-    El análisis debe ser un párrafo coherente, explicando cómo el porcentaje se traduce en la adecuación del candidato al puesto. Tiene que ser breve y entendible
+    filename = obtener_nombre_archivo_desde_url(pdf_url)
    
-   
+    filename_json = json.dumps(filename)
+    contenido_json = json.dumps(contenido)
+
+    prompt4 = f"""Eres un experto en marca personal y empleabilidad. Tu tarea es analizar el nombre del archivo de un currículum (CV) para determinar si es profesional.
+
+    Evalúa únicamente el **nombre del archivo PDF**: {filename_json}
+
+    Considera si:
+    - Es fácil de identificar por el reclutador.
+    - Contiene el nombre del candidato o al menos algo representativo.
+    - Evita combinaciones de números aleatorios o palabras genéricas.
+    - Transmite orden y seriedad profesional.
+
+    Considera este contenido del CV: {contenido_json}
+
+    Responde SOLO en JSON con esta estructura:
+
+    {{
+    "archivo": {filename_json},
+    "comentario": "Dime si es adecuado o no, por qué, y sugiere un nombre más profesional si aplica."
+    }}
     """
+
+
 
     response4 = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo", 
+        model="gpt-3.5-turbo",
         messages=[{"role": "user", "content": prompt4}],
         temperature=0.7,
-       # max_tokens=130
+        #max_tokens=50
     )
+    filename_response = response4['choices'][0]['message']['content']
 
+    print("filename_response", filename_response)
 
     prompt5 = f"""
-    Brinda sugerencias personalizadas de mejora por sección del CV, orientadas al rol de {puesto}. En esta parte, cubre lo siguiente:
+    Actúa como un reclutador profesional experto en evaluación de currículums.
 
-    En la parte de "Actual" indicaras todo lo de experiencia laboral, igual que en el cv {contenido}
-    En la parte de "Evaluacion" indicaras como Si presenta un resultado cuantificable o No presenta resultado cuantificable
-    En la parte de "Sugerencia" debes darme la correccion segun la parte "Actual":
-        - Iniciar cada logro con un verbo de acción poderoso.
-        - Incluir resultados cuantificables.
-        - Alinear cada experiencia con el rol objetivo.
-        - Brindar ejemplos con los verbos pero relacionados con el cv, no quiero que me des ejemplos tuyos, utiliza oraciones del cv y agrega el verbo, pero referente a la experiencia laboral.
+    Analiza si los siguientes elementos clave están presentes, bien ubicados y son fácilmente identificables en el CV:
 
-      
-    Devuelme como ese JSON, en formato correcto
-    Cada punto que hagas, hazle un salto de línea, o sea que no esté todo pegado. Osea en  Cada Corchete Separado
-    Solo es de la formación Laboral. TODO LO QUE ANALIZAS ES RESPECTO AL CV, NO ME AGREGUES COSAS QUE NO SON
+    - Nombre
+    - Correo electrónico
+    - Experiencia laboral
+    - Formación académica
 
-    Todo en relacion con el {puesto}
+    Responde en formato JSON con:
 
-    Devuélveme solo en formato JSON, con la siguiente estructura exacta (asegúrate de que el formato sea correcto):
+    - "evaluacion": una lista de objetos, uno por cada elemento, con las siguientes claves:
+    - "elemento": el nombre del campo evaluado
+    - "existe": true o false
+    - "bien_posicionado": true o false
+    - "facil_de_distinguir": true o false
 
-       [{{
-            "Empresa":,
-            "Actual": ,
-            "Evaluación": ,
-            "Sugerencia": 
-        }}
-        {{
-            "Empresa":,
-            "Actual": ,
-            "Evaluación": ,
-            "Sugerencia": 
-        }}]
-      
+    - "comentario_general": una conclusión clara y profesional de mínimo 25 palabras sobre la presentación general de estos elementos. Evalúa si son suficientes, si están bien organizados o si requieren mejoras para facilitar la lectura y comprensión del CV.
+
+    No añadas ningún texto fuera del JSON.
+
+    Texto del CV:
+    \"\"\"{contenido}\"\"\"
     """
 
-    while True:
-        response5 = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo", 
-            messages=[{"role": "user", "content": prompt5}],
-            temperature=0.7,
-            #max_tokens=200 
-        )
-        cv_improvement_suggestions = response5['choices'][0]['message']['content']
-
-        suggestions_data = safe_json_load(cv_improvement_suggestions)
-        if suggestions_data is not None:
-            break
-
-
-    prompt20 = f"""
-
-    Brinda sugerencias personalizadas de mejora por sección del CV, orientadas al rol de {puesto}. En esta parte, cubre lo siguiente:
-    Formación académica: 
-
-    En la parte de "Actual" indicaras todo lo de experiencia academica, igual que en el cv {contenido}, Solo Menciona Grado Academico - Profesion o Estudio
-
-    En la parte de "Evaluacion" indicaras Correcto o Incorrecto
-
-    En la parte de "Sugerencia" debes darme la correccion segun la parte "Actual":
-        - Si falta alguno de estos elementos, indica específicamente qué falta., Si falta algo en "Evaluacion" seria incorrecto 
-        - Si hay información adicional (como materias, cursos, proyectos, etc.), indica concretamente 
-        qué sobra y que debe eliminarlo. 
-        - Si no figura el orden de mérito y pudiera tenerlo, sugiere que lo agregue si corresponde 
-        (importante). Evita decir que indique lo de promedio.
-        - Si no necesita sugerencia, es decir todo esta correcto, solo indicar Esta bien
-        - Indicar en caso no se mencione el estudio, o carrera estudiada o profesion, Si no menciona en "Evaluacion" seria incorrecto 
-
-    Devuélveme solo en formato JSON, con la siguiente estructura exacta (asegúrate de que el formato sea correcto):
-       [{{
-            "Actual": ,
-            "Evaluación": ,
-            "Sugerencia": 
-        }}
-        {{
-            "Actual": ,
-            "Evaluación": ,
-            "Sugerencia": 
-        }}]
-        Devuelme como ese JSON, en formato correcto
-        Cada punto que hagas, hazle un salto de línea, o sea que no esté todo pegado. Osea en  Cada Corchete Separado
-        Solo es de la formación academica., TODO LO QUE ANALIZAS ES RESPECTO AL CV, NO ME AGREGUES COSAS QUE NO SON
-        {contenido}
-    """
-    
-    while True:
-        response20 = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo", 
-            messages=[{"role": "user", "content": prompt20}],
-            temperature=0.7,
-            #max_tokens=200 
-        )
-        formacion_academica = response20['choices'][0]['message']['content']
-
-        suggestions_data2 = safe_json_load(formacion_academica)
-        if suggestions_data2 is not None:
-            break
-
-
-
-
-
-    prompt21 = f"""
-
-    Brinda sugerencias personalizadas de mejora por sección del CV, orientadas al rol de {puesto}. En esta parte, cubre lo siguiente:
-
-        Habilidades: 
-        ● Verifica que las habilidades estén agrupadas por tipo (por ejemplo: Programación, 
-        Herramientas, Software). 
-        ● Verifica que cada habilidad tenga un nivel de dominio indicado (por ejemplo: Básico, 
-        Intermedio, Avanzado). 
-        ● El formato debe ser corrido por agrupación, como en este ejemplo: 
-        Programación: Python (Avanzado), C++ (Básico) 
-        Formato de salida: 
-        CV Actual: [Texto original de la sección de habilidades] 
-        Evaluación: [Correcto / Falta nivel / Falta agrupación / Faltan ambos] 
-        Sugerencia: [Versión sugerida con habilidades agrupadas y nivel de dominio en formato 
-        correcto, Si No hay sugerencias, indicar que todo esta bien] 
-        Contenido del CV a evaluar: 
-        No Agregues Simbolos o Guiones o Astericos en los Subtitulos
-        Cada punto que hagas, hazle un salto de linea, osea que no este todo pegado
-        Todo en relacion con el {puesto}
-
-        Devuélveme solo en formato JSON, con la siguiente estructura exacta (asegúrate de que el formato sea correcto):
-        [{{
-                "Actual": ,
-                "Evaluación": ,
-                "Sugerencia": 
-            }}
-            {{
-                "Actual": ,
-                "Evaluación": ,
-                "Sugerencia": 
-            }}]
-        Devuelme como ese JSON, en formato correcto
-
-        Cada punto que hagas, hazle un salto de línea, o sea que no esté todo pegado. Osea en  Cada Corchete Separado
-        Solo es de la Habilidades., TODO LO QUE ANALIZAS ES RESPECTO AL CV, NO ME AGREGUES COSAS QUE NO SON
-    {contenido}
-    """
-
-    while True:
-        response21 = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo", 
-            messages=[{"role": "user", "content": prompt21}],
-            temperature=0.7,
-            #max_tokens=200 
-        )
-        habilidades_tecnicas = response21['choices'][0]['message']['content']
-
-        suggestions_data3 = safe_json_load(habilidades_tecnicas)
-        if suggestions_data3 is not None:
-            break
-
-    prompt22 = f"""
-
-    Brinda sugerencias personalizadas de mejora por sección del CV, orientadas al rol de {puesto}. En esta parte, cubre lo siguiente:
-
-        - Sugerir certificaciones específicas que potencien el perfil.
-        - Nombre de la certificación.
-        - Institución que la emite (si hay).
-        - Fecha de obtención.
-
-    Por favor, asegúrate de proporcionar sugerencias específicas y prácticas para cada sección mencionada, basadas en el perfil del candidato y su adecuación al rol de {puesto}.
-    No agregues asetericos, ni numerales
-        Cada punto que hagas, hazle un salto de linea, osea que no este todo pegado, TODO LO QUE ANALIZAS ES RESPECTO AL CV, NO ME AGREGUES COSAS QUE NO SON
-
-    {contenido}
-    """
-
-    response22 = openai.ChatCompletion.create(
+    response5 = openai.ChatCompletion.create(
         model="gpt-3.5-turbo", 
-        messages=[{"role": "user", "content": prompt22}],
+        messages=[{"role": "user", "content": prompt5}],
         temperature=0.7,
-        #max_tokens=200 
+        #max_tokens=50  
     )
-    certificaciones = response22['choices'][0]['message']['content']
+
+    indispensable = response5['choices'][0]['message']['content']
+
+    prompt6 = f"""
+    Actúa como un revisor profesional de CVs. Tu tarea es detectar únicamente **palabras que se repiten de forma innecesaria o excesiva** en el siguiente texto.
+
+    🔍 **Ignora las siguientes categorías de palabras**:
+    - Artículos: el, la, los, las, un, una, unos, unas
+    - Preposiciones: de, en, con, por, para, sobre, entre, hasta, hacia, desde
+    - Conjunciones y conectores: y, o, u, pero, aunque, sino, mientras, así, entonces
+    - Pronombres comunes: yo, tú, él, ella, nosotros, ustedes, ellos
+    - Verbos muy comunes: ser, estar, haber, tener, hacer (solo si no están en exceso)
+    - Monosílabos vacíos de contenido: a, e, es, al, lo, sí, no, se, que, qué, ya, más
+    - Palabras similares con diferencia de género o número (ej: "capacidad" y "capacidades" se cuentan como una sola)
+
+    📤 Devuelve **solo** un JSON con esta estructura:
+
+    {{ 
+    "palabras_repetidas": [
+        {{ "palabra": "x", "veces": n }},
+    ]
+    }}
+
+    No incluyas ningún texto fuera del JSON.
+
+    Texto a revisar:
+    \"\"\"{contenido}\"\"\"
+    """
 
 
+    response6 = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo", 
+        messages=[{"role": "user", "content": prompt6}],
+        temperature=0.7,
+        #max_tokens=50  
+    )
+
+    repeat_words = response6['choices'][0]['message']['content']
 
     prompt7 = f"""
-    Eres un reclutador profesional. Por favor, proporciona un análisis detallado. En este análisis, evalúa lo siguiente:
+    Imagina que eres un revisor de currículums con experiencia en selección de personal. Tu tarea es revisar el CV de una persona que postula al siguiente cargo: **{puesto_postular}**.
 
-    Identifica las áreas en las que el candidato sobresale y tiene un fuerte desempeño. Esto puede incluir habilidades específicas, experiencia relevante, o logros notables que aportan valor al puesto. Dame en guiones, se breve y consiso
+    Tu objetivo es dar una **opinión profesional y cercana** sobre si la experiencia laboral de la persona está **vigente** y si **realmente aporta valor para el puesto al que postula**.
 
-    Se breve y consiso, hazlo en guiones y se especifico
+    Habla de tú a tú, como si dieras una recomendación directa al candidato. Usa un **solo párrafo**, en tono natural (sin parecer una IA ni usar lenguaje técnico innecesario).
 
-    Por favor, asegúrate de que cada sección esté claramente separada y de que las recomendaciones sean específicas y detalladas.
+    Evalúa:
+    - Si la experiencia es reciente (últimos 10-15 años).
+    - Si está alineada al cargo o al tipo de trabajo que se espera.
+    - Si hay continuidad profesional o vacíos laborales importantes.
+    - No comentes sobre estudios, habilidades o redacción.
 
-    No debe a ver subtitulos no les coloques numerales o astericos
-    No pongas subtitulos, todo hazlo por guiones y de manera general
-    Cada punto que hagas, hazle un salto de linea, osea que no este todo pegado
+    Ejemplos del tono esperado:
+    - "Veo que tu experiencia reciente en atención al cliente encaja bien con lo que se busca en este puesto, aunque te recomiendo resaltar más logros concretos."
+    - "Has trabajado hace tiempo en roles similares, pero sería ideal actualizar tu experiencia con algo más reciente para estar al día con lo que el mercado pide."
+    - "Tuviste un rol interesante en logística hace unos años, pero hay un vacío importante desde entonces; te recomiendo explicar eso para evitar dudas."
 
-    {contenido}
+    Texto del CV:
+    \"\"\"{contenido}\"\"\"
     """
+
 
     response7 = openai.ChatCompletion.create(
         model="gpt-3.5-turbo", 
         messages=[{"role": "user", "content": prompt7}],
         temperature=0.7,
+        #max_tokens=50  
     )
-    observations_and_opportunities = response7['choices'][0]['message']['content']
-
-
-    prompt13 = f"""
-    Eres un reclutador profesional. Por favor, proporciona un análisis detallado. En este análisis, evalúa lo siguiente:
-
-    Señala las áreas donde el candidato puede mejorar para ser más adecuado para el puesto. Esto puede incluir habilidades faltantes, experiencia relevante o áreas en las que necesita formación adicional.
-
-    Por favor, asegúrate de que cada sección esté claramente separada y de que las recomendaciones sean específicas y detalladas.
-
-    Se breve y consiso, hazlo en guiones y se especifico
-
-    No debe a ver subtitulos no les coloques numerales o astericos, sin asteriscos
-    
-    No pongas subtitulos, todo hazlo por guiones y de manera general
-
-    No quiero Asteriscos, si el {puesto} es en ingles, tu mantiene el puesto tal como es pero la respuesta en español
-
-    No quiero astericos, no me des subtitulos
-    Cada punto que hagas, hazle un salto de linea, osea que no este todo pegado
-
-    {contenido}
-    """
-
-    response13 = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo", 
-        messages=[{"role": "user", "content": prompt13}],
-        temperature=0.7,
-    )
-    areas_mejora = response13['choices'][0]['message']['content']
-
-
-
-
-
-    prompt14 = f"""
-    Eres un reclutador profesional. Por favor, proporciona un análisis detallado. En este análisis, evalúa lo siguiente:
-
-    Proporciona sugerencias claras y accionables para cada área de mejora. Las recomendaciones deben ser prácticas y enfocadas en cómo el candidato puede mejorar para mejorar su idoneidad para el puesto.
-
-    Por favor, asegúrate de que cada sección esté claramente separada y de que las recomendaciones sean específicas y detalladas.
-
-    Se breve y consiso
-
-    No debe a ver subtitulos no les coloques numerales o astericos, sin asteriscos, quiero por guiones, se claro
-    
-    No pongas subtitulos, todo hazlo por guiones y de manera general
-        Cada punto que hagas, hazle un salto de linea, osea que no este todo pegado
-
-    No me pongas asteriscos o lineas o simbolos a los subtitutlos
-    Ejemplo: **Formación Académica:**, eso no quiero quita los asteriscos, sin asteriscos ni otro simbolos
-    Solo debe ser Formacion Academica, no le agregues asteriscos
-    {contenido}
-    """
-
-    response14 = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo", 
-        messages=[{"role": "user", "content": prompt14}],
-        temperature=0.7,
-    )
-    recomendaciones_especificas = response14['choices'][0]['message']['content']
-
-
-
-
-    cv_approach_analysis = response4['choices'][0]['message']['content']
-
-
+    relevance = response7['choices'][0]['message']['content']
 
     prompt8 = f"""
-    Identifica 5 palabras clave segun el {puesto}
-    relevantes para ese rol, que suelen aparecer en descripciones de empleo similares. Estas 
-    deben incluir habilidades técnicas o blandas clave para el puesto. 
+    Actúa como un reclutador profesional. Evalúa el uso de verbos de impacto en el siguiente currículum.
 
-    Solo utiliza referencias propias del rol de {puesto}. 
-     
-    NO CURSOS TEC, Se estricto al momento de dar las palabras clave todo en relacion con el {puesto}, evita mencionar cosas relacionadas con "Experiencia en..."
-    Las palabras claves son relacionadas con el {puesto}
-    Formato de salida:
-    - Palabra clave 1: Indica en que parte del CV incluirlo,  y un ejemplo de como incluirlo  debes crearlo tu, no con informacion del CV, logro, el ejemplo debe incluir resultados cuantificables agrega algun valor cuantificable, ya sea tasas %, enteros, si es que tiene, Por ejemplo:
-    - Palabra clave 2: Indica en que parte del CV incluirlo,  y un ejemplo de como incluirlo  debes crearlo tu, no con informacion del CV, logro, el ejemplo debe incluir  resultados cuantificables agrega algun valor cuantificable, ya sea tasas %, enteros, si es que tiene Por ejemplo:
-    - Palabra clave 3: Indica en que parte del CV incluirlo,  y un ejemplo de como incluirlo  debes crearlo tu, no con informacion del CV, logro, el ejemplo debe incluir  resultados cuantificables agrega algun valor cuantificable, ya sea tasas %, enteros, si es que tiene Por ejemplo:
-    - Palabra clave 4: Indica en que parte del CV incluirlo,  y un ejemplo de como incluirlo  debes crearlo tu, no con informacion del CV, logro, el ejemplo debe incluir  resultados cuantificables agrega algun valor cuantificable, ya sea tasas %, enteros,si es que tiene Por ejemplo:
-    - Palabra clave5: Indica en que parte del CV incluirlo,  y un ejemplo de como incluirlo  debes crearlo tu ,no con informacion del CV, logro,  el ejemplo debe incluir resultados cuantificables agrega algun valor cuantificable, ya sea tasas %, enteros, si es que tiene Por ejemplo:
+    Analiza:
+    - Si el candidato usa verbos fuertes que transmiten logros, liderazgo o resultados (por ejemplo: lideré, optimicé, implementé).
+    - Si los verbos son genéricos o poco potentes (como: ayudé, colaboré, realicé).
+    - Si hay variedad o repetición.
 
-    Recuerda la palabra clave damelo normal, sin agregar guiones, segun el formato de salida
+    Devuelve un JSON con la siguiente estructura:
+
+    - "nivel": un número entero del 1 al 10, donde 10 representa un uso excelente de verbos de impacto.
+    - "comentario": una observación profesional breve y clara, de aproximadamente 160 caracteres (no más de 180). Usa un estilo formal, sin emojis.
+    - "sugerencias": una lista de 3 sugerencias específicas para mejorar los verbos en la redacción del CV. Cada sugerencia debe tener al menos 20 palabras y explicar claramente cómo mejorar un verbo genérico o repetido, incluyendo un ejemplo concreto de reemplazo.
+
+    No incluyas ningún texto fuera del JSON.
+
+    Texto del CV:
+    \"\"\"{contenido}\"\"\"
     """
 
 
@@ -890,163 +360,317 @@ async def analizar_cv(pdf_url: str, puesto_postular: str):
         model="gpt-3.5-turbo", 
         messages=[{"role": "user", "content": prompt8}],
         temperature=0.7,
+        #max_tokens=50  
     )
-    elements_clave = response8['choices'][0]['message']['content']
+    verbos_impact = response8['choices'][0]['message']['content']
 
 
     prompt9 = f"""
-    Sugerir cursos técnicos para cubrir brechas detectadas en el sector.
-    - Recomendar certificaciones alineadas a las competencias clave del rol.
-    - Añadir formación en habilidades blandas relevantes y diferenciadoras (ej. comunicación, gestión del tiempo, trabajo en equipo). 
-    Ser específicos: nombre, plataforma o institución, y razón por la que son valiosos.
-    No agregues asteriscos
-    {contenido}
+    Actúa como un experto en redacción de currículums. Analiza únicamente el primer párrafo del perfil profesional que aparece a continuación. 
+
+    Ignora encabezados como “Perfil Profesional”, así como correos, teléfonos, links u otros datos de contacto. No incluyas esa información en el resultado.
+
+    Tu objetivo es evaluar la redacción del texto actual y sugerir una versión mejorada que sea más clara, profesional y alineada con estándares actuales. Mantén un tono formal, positivo y directo.
+
+    Devuelve solo un JSON con esta estructura:
+
+    {{
+    "actual": "Texto actual del primer párrafo, sin encabezados ni contactos.",
+    "recomendado": "Texto recomendado, redactado de forma más clara y profesional."
+    }}
+
+    Texto del perfil:
+    \"\"\"{contenido}\"\"\"
     """
+
 
     response9 = openai.ChatCompletion.create(
         model="gpt-3.5-turbo", 
         messages=[{"role": "user", "content": prompt9}],
         temperature=0.7,
+        #max_tokens=50  
     )
+    perfil_profesional = response9['choices'][0]['message']['content']
 
-    cursos_ceritificaciones = response9['choices'][0]['message']['content']
 
+    prompt10 = f"""
+    Actúa como un reclutador experto en selección de personal para el rol de {puesto}. Evalúa el contenido del siguiente CV y clasifícalo en las siguientes categorías:
+
+    - Habilidades de análisis
+    - Resultados cuantificables
+    - Habilidades blandas
+    - Lenguaje técnico
+
+    Para cada categoría proporciona:
+    1. Un nivel: Bajo, Medio o Alto.
+    2. Una acción concreta para mejorar: debe ser breve, práctica y de aplicación inmediata. Si es posible, sugiere reemplazos específicos en el formato: “cambiar #X# por #Y#”.
+
+    Formato de salida JSON con claves en snake_case. No añadas explicaciones ni texto adicional fuera del JSON.
+
+    Contenido del CV:
+    \"\"\"{contenido}\"\"\"
+    """
+
+    response10 = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo", 
+        messages=[{"role": "user", "content": prompt10}],
+        temperature=0.7,
+        #max_tokens=50  
+    )
+    ajuste_puesto = response10['choices'][0]['message']['content']
+    try:
+        ajuste_puesto_json = clean_and_load_json(ajuste_puesto)
+    except json.JSONDecodeError as e:
+        print("Error al decodificar JSON:", e)
+        ajuste_puesto_json = None
+    print(ajuste_puesto_json)
+
+
+    prompt11 = f"""
+    Brinda sugerencias personalizadas de mejora por sección del CV, orientadas al rol de {puesto}.
+
+    En esta parte, cubre lo siguiente:
+
+    - En "Empresa" indica el nombre de la empresa tal como aparece en el CV.
+    - En "Actual" incluye el texto completo de la experiencia laboral tal como figura en el CV.
+    - En "Recomendado" proporciona una versión mejorada del texto de experiencia laboral, aplicando lo siguiente:
+        - Iniciar con un verbo de acción fuerte.
+        - Incluir resultados cuantificables si aplica.
+        - Alinear con las funciones o competencias clave para el rol de {puesto}.
+        - Usa el contenido original como base y mejóralo directamente. No inventes logros no mencionados.
+        - Mantén el mismo contenido, solo mejora redacción, impacto y claridad.
+
+    Devuélveme solo un JSON con el siguiente formato:
+
+    [
+    {{
+        "Empresa": "Nombre de la empresa",
+        "Actual": "Texto original tal como aparece en el CV.",
+        "Recomendado": "Texto mejorado aplicando verbos de impacto, claridad y orientación al puesto de {puesto}."
+    }},
+    {{
+        "Empresa": "Nombre de la empresa",
+        "Actual": "Texto original tal como aparece en el CV.",
+        "Recomendado": "Texto mejorado aplicando verbos de impacto, claridad y orientación al puesto de {puesto}."
+    }}
+    ]
+
+        Solo analiza la sección de experiencia laboral.
+        No incluyas encabezados, datos de contacto ni formación académica.
+        No agregues explicaciones fuera del JSON.
+        Toda la información debe basarse únicamente en el contenido proporcionado a continuación:
+        \"\"\"{contenido}\"\"\"
+    """
+
+    response11 = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo", 
+        messages=[{"role": "user", "content": prompt11}],
+        temperature=0.7,
+        #max_tokens=50  
+    )
+    experiencia_laboral = response11['choices'][0]['message']['content'].strip()
 
     prompt12 = f"""
-     Eres un reclutador profesional. Evalúa si el CV cumple con los criterios mínimos de legibilidad y presentación profesional, basándote en el formato Harvard. Los criterios son los siguientes:
+    Actúa como un experto en reclutamiento y redacción de currículums (CVs), con experiencia en múltiples industrias y perfiles profesionales.
 
-    1. 1 página: El CV debe ocupar solo una página. (Debes verificar que si tiene una pagina o mas)
-    2. Buena jerarquía visual: Asegúrate de que la información esté organizada de manera clara, con títulos y subtítulos bien diferenciados. (Se directo)
-    3. Tipografía clara: El CV debe usar una tipografía legible y profesional. (Se breve al indicar eso)
-    4. Uso correcto de espacios: Los márgenes y el espaciado deben ser adecuados, sin saturar el documento.
-    5. Estructura coherente: El CV debe seguir una estructura lógica, por ejemplo, con secciones bien definidas (formación, experiencia laboral, habilidades, etc.).
+    Analiza el siguiente contenido extraído de un CV:
 
-    Si el CV cumple con estos criterios, confirma que pasa los filtros ATS. Si no, indica que no cumple y proporciónale el siguiente enlace donde puede encontrar un formato adecuado: https://www.workin2.com/post/descarga-gratis-formatos-de-cv-para-estudiantes-y-practicantes.
-    No agregues asetericos, ni numerales
+    \"\"\"{contenido}\"\"\"
 
-    Tienes que verificar bien el documento, contar todo bien
-    Ejemplo: Algo asi debe ser: si es que cumple: Tienes que indicar detalle por detalle
-    El CV cumple con los criterios mínimos de legibilidad y presentación profesional en
-    formato Harvard. 
-    1. Cumple con tener una sola página.
-    2. La jerarquía visual está bien definida con títulos y subtítulos diferenciados.
-    3. La tipografía es clara y profesional.
-    4. Los espacios y márgenes son adecuados, sin saturar el documento.
-    5. Sigue una estructura coherente con secciones bien definidas (Experiencia,
-    Voluntariado, Educación, Habilidades & Certificaciones, Logros destacados, Hobbies).
-    Por lo tanto, este CV pasa los filtros ATS. ¡Buen trabajo!
+    El puesto objetivo del candidato es: **{puesto}**
 
-    {contenido}
+    Tu tarea es:
+    1. Identificar la sección relacionada con habilidades técnicas, herramientas, conocimientos técnicos o específicos del perfil (ej. software, metodologías, idiomas, maquinaria, plataformas, etc.).
+    2. Evaluar si esta sección está bien redactada, clara, agrupada correctamente y alineada con el perfil profesional del puesto objetivo (**{puesto}**).
+    3. Brindar un conjunto de recomendaciones útiles para mejorar esa sección con el fin de hacerla más atractiva y profesional para un reclutador en ese campo.
+
+    Las recomendaciones pueden incluir:
+    - Cómo agrupar las herramientas o habilidades de forma más clara y lógica (por categorías, niveles de dominio, frecuencia de uso, etc.).
+    - Cómo mejorar la redacción para evitar repeticiones, ambigüedades o estructuras confusas.
+    - Qué tipo de habilidades podrían estar faltando según el rol (sin inventar, pero con sugerencias realistas).
+    - Cómo posicionar esa sección en el CV (ej. destacarla si es muy relevante para el rol).
+    - Sugerencias de orden (ej. por prioridad, nivel de experiencia o herramientas más demandadas).
+    - Qué evitar (exceso de herramientas irrelevantes o tecnológicamente obsoletas).
+
+    Tu respuesta debe ser exclusivamente en formato JSON, con la siguiente estructura:
+
+    {{
+    "recomendaciones": [
+        "Primera recomendación clara y específica.",
+        "Segunda recomendación relevante y alineada al rol {puesto}.",
+        "... (tantas como correspondan, mínimo 3 si es posible)"
+    ]
+    }}
+
     """
 
     response12 = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo", 
+        model="gpt-3.5-turbo",
         messages=[{"role": "user", "content": prompt12}],
         temperature=0.7,
+        #max_tokens=50
     )
 
-    formato_diseno_cv = response12['choices'][0]['message']['content']
+    habilidades_herramientas = response12['choices'][0]['message']['content'].strip()
 
+    prompt13 = f"""
+    Analiza el siguiente CV y enfócate exclusivamente en la sección de educación o formación académica.
 
-    prompt_analysis_cv = f"""
-    Eres un reclutador profesional con experiencia en selección de talento junior. Tu tarea es 
-    analizar el siguiente documento y otorgar una calificación numérica del 1 al 10, basada 
-    exclusivamente en qué tan bien se ajusta el perfil al puesto de {puesto}. 
-    Evalúa los siguientes criterios: 
-    ● Experiencia relevante para el rol 
-    ● Habilidades técnicas alineadas al puesto 
-    ● Habilidades blandas adecuadas al entorno 
-    ● Formación académica y certificaciones 
-    ● Presentación, claridad y estructura del CV 
-    ● Conocimiento aplicable al puesto 
-    Condición especial: Si el candidato cumple adecuadamente en al menos dos de estos seis 
-    criterios, el puntaje mínimo será 5, incluso si no hay coincidencia total con el puesto. 
-    Condición adicional: Si el documento no es un currículum o no contiene información 
-    personal y profesional de un candidato, responde automáticamente con 0/10. 
-    Importante: Este análisis aplica a talento junior. No penalices fuertemente la falta de 
-    experiencia laboral formal. Evalúa con enfoque en potencial, habilidades y nivel de 
-    alineación. 
-    Contenido del documento a evaluar: 
-    {contenido} 
-    Solo responde con un número en formato Numero. No incluyas ninguna explicación, 
-    comentario ni texto adicional. 
-    
-    {contenido}
+    Genera un array de recomendaciones generales en formato JSON. Estas recomendaciones deben:
+
+    - Ser útiles y aplicables para mejorar la presentación y claridad de la formación académica.
+    - Señalar aspectos como: agregar fechas si faltan, detallar el grado obtenido, evitar abreviaciones poco claras, incluir logros destacados si los hay, o mejorar la alineación con el perfil requerido para el puesto de {puesto}.
+    - Cada recomendación debe tener al menos 20 palabras.
+    - No inventes información no presente en el CV.
+    - Si no hay una sección de educación/formación académica en el CV, incluye una única recomendación indicando que dicha sección no fue encontrada.
+
+    Analiza este contenido:
+
+    \"\"\"{contenido}\"\"\"
+
+    Devuelve solo el JSON con este formato:
+
+    [
+    "Recomendación 1...",
+    "Recomendación 2...",
+    ...
+    ]
     """
 
-    response_analysis_cv = openai.ChatCompletion.create(
+    response13 = openai.ChatCompletion.create(
         model="gpt-3.5-turbo", 
-        messages=[{"role": "user", "content": prompt_analysis_cv}],
+        messages=[{"role": "user", "content": prompt13}],
         temperature=0.7,
+        #max_tokens=50  
     )
-
-    response_text = response_analysis_cv['choices'][0]['message']['content'].strip()
-
-    match = re.search(r'\b([1-9]|10)\b', response_text)
-    if match:
-        cv_rating = int(match.group(1))
-    else:
-        cv_rating = 5  
+    educacion = response13['choices'][0]['message']['content']
 
 
-    pdf_output = create_pdf(analysis_text,
-                            score,
-                            suitability_analysis,
-                            suitability_score,
-                            alignment_score,
-                            cv_approach_analysis,
-                            cv_improvement_suggestions,
-                            candidate_name,
-                            observations_and_opportunities,
-                            elements_clave,
-                            cursos_ceritificaciones,
-                            formato_diseno_cv,
-                            areas_mejora,
-                            recomendaciones_especificas,
-                            puesto,
-                            formacion_academica,
-                            habilidades_tecnicas,
-                            certificaciones,
-                            cv_rating)
+    prompt14= f"""
+    Analiza el siguiente CV y detecta si hay una sección de voluntariado.
+    Sino encuentras la sección de voluntariado, responde con un JSON indicando que no se encontró. SE MUY ESPECIFICO Y NO INVENTES INFORMACIÓN. NI LA CONFUNDAS CON EXPERIENCIA LABORAL. SE LITERALMENTE ESPECIFICO CON "VOLUNTARIADO".
 
-    public_folder = './static/pdf_reports/'
-    os.makedirs(public_folder, exist_ok=True)
-    now = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    Si existe, por cada experiencia encontrada devuelve:
 
-    pdf_filename = f"{candidate_name.replace(' ', '-')}_{now}.pdf"
-    pdf_filepath = os.path.join(public_folder, pdf_filename)
+    - "Organización": nombre de la institución u organización.
+    - "Actual": texto original tal como aparece en el CV.
+    - "Recomendado": versión mejorada del texto, manteniendo la experiencia pero:
+        - Iniciando con un verbo de acción potente.
+        - Destacando logros, impacto o habilidades desarrolladas.
+        - Enfocando el texto en competencias alineadas al rol de {puesto}.
+        - Sin inventar contenido no presente en el CV.
 
-    with open(pdf_filepath, 'wb') as f:
-        f.write(pdf_output.getvalue())
+    Si **no se encuentra** una sección de voluntariado, responde igualmente con un JSON en este formato:
 
-    pdf_url = f"https://api-cv-myworkin.onrender.com/static/pdf_reports/{pdf_filename}"
+    [
+    {{
+        "Organización": null,
+        "Actual": null,
+        "Recomendado": "No se encontró una sección de voluntariado en el CV."
+    }}
+    ]
 
-    return JSONResponse(content={"pdf_url": pdf_url})
+    Todo el análisis se basa únicamente en el contenido proporcionado a continuación:
 
+    \"\"\"{contenido}\"\"\"
 
-@app.get("/backup-static/")
-async def backup_static():
-    static_folder = "static"
-    zip_buffer = io.BytesIO()
-
-    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-        for root, dirs, files in os.walk(static_folder):
-            for file in files:
-                file_path = os.path.join(root, file)
-                # Añadir archivo al zip con ruta relativa
-                arcname = os.path.relpath(file_path, static_folder)
-                zip_file.write(file_path, arcname=arcname)
-
-    zip_buffer.seek(0)
-    return StreamingResponse(zip_buffer, media_type="application/zip", headers={"Content-Disposition": "attachment; filename=static_backup.zip"})
-
-
-def extract_score_from_text(text):
+    No incluyas texto fuera del JSON.
+    """
+    response14 = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo", 
+        messages=[{"role": "user", "content": prompt14}],
+        temperature=0.7,
+        #max_tokens=50  
+    )
+    voluntariado = response14['choices'][0]['message']['content']
     try:
-        score = int(text.split(":")[1].strip().split()[0])
-        return score
-    except Exception as e:
-        return 0
+        voluntariado_json = clean_and_load_json(voluntariado)
+    except json.JSONDecodeError as e:
+        print("Error al decodificar JSON:", e)
+        voluntariado_json = None
 
 
+    prompt15 = f"""
+    Actúa como un experto en revisión profesional de currículums (CVs), con énfasis en formato, claridad y atracción para reclutadores.
 
+    Evalúa el siguiente contenido extraído de un CV:
+
+    \"\"\"{contenido}\"\"\"
+
+    El rol objetivo es: **{puesto}**
+
+    Tu tarea es analizar el formato del CV con base en los siguientes criterios, orientados a mejorar su presentación y efectividad:
+
+    1. **Longitud**: Evalúa si el CV excede 1 página (en perfiles junior o intermedios) o si es innecesariamente largo para el rol. el num de paginas es {num_paginas} . recuerda que un CV debe ser conciso y fácil de leer. si es 1 hoja el estado es "Alto", si es 2 hojas "Medio" y si es más de 2 "Bajo".
+
+    2. **Foto**: Verifica si el CV incluye una foto. La mayoría de los filtros automáticos de RRHH no lo recomiendan, especialmente en países donde se evita por sesgos. ENtonces, si hay foto el estado es "Bajo", si no hay foto el estado es "Alto". 
+    
+    3. **Palabras clave**: Evalúa si incluye términos relevantes al puesto, como tecnologías, habilidades técnicas, o conceptos específicos (por ejemplo, en el caso de {puesto}, busca términos como: análisis de riesgo, scoring, producto financiero, gestión, liderazgo, procesos, herramientas, etc.).
+    4. **Verbos de impacto**: Evalúa si se utilizan verbos potentes y orientados a resultados, como: "lideré", "implementé", "optimizé", "logré", en lugar de verbos vagos o pasivos como "encargado de", "apoyé", "participé".
+
+    Para cada uno de estos 4 criterios, responde con:
+
+    - `"estado"`: Puede ser **"Alto"**, **"Medio"** o **"Bajo"**, según la calidad o presencia del elemento.
+    - `"sugerencia"`: Breve texto con una recomendación concreta para mejorar o justificar la evaluación.
+
+    Devuelve exclusivamente un JSON con el siguiente formato:
+
+    {{
+    "longitud": {{
+        "estado": "",
+        "sugerencia": ""
+    }},
+    "foto": {{
+        "estado": "",
+        "sugerencia": ""
+    }},
+    "palabras_clave": {{
+        "estado": "",
+        "sugerencia": ""
+    }},
+    "verbos_de_impacto": {{
+        "estado": "",
+        "sugerencia": ""
+    }}
+    }}
+    """
+    response15 = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo", 
+        messages=[{"role": "user", "content": prompt15}],
+        temperature=0.7,
+        #max_tokens=50  
+    )
+    formato_optimizacion = response15['choices'][0]['message']['content']
+
+    return JSONResponse(content={
+        # 1 Analisis Principal
+        "mainly_analysis": json.loads(mainly_analysis),
+        # 2 Tamaño del CV
+        "pagination": json.loads(pagination),
+        # 3 Ortografía
+        "spelling": json.loads(spelling),
+        # 4 Nombre del archivo
+        "filename": json.loads(filename_response),
+        # 5 Indispensables
+        "indispensable": json.loads(indispensable),
+        # 6 Palabras repetidas
+        "repeat_words": json.loads(repeat_words),
+        # 7 Relevancia de la experiencia
+        "relevance": relevance,
+        # 8 Verbos de impacto
+        "verbos_impact": json.loads(verbos_impact),
+        # 9 Perfil Profesional
+        "perfil_profesional": json.loads(perfil_profesional),
+        # 10 Ajuste al puesto
+        "ajuste_puesto": ajuste_puesto_json,
+        # 11 Experiencia laboral
+        "experiencia_laboral": json.loads(experiencia_laboral),
+        # 12 Habilidades y Herramientas
+        "habilidades_herramientas": json.loads(habilidades_herramientas)['recomendaciones'],
+        # 13 Educación
+        "educacion": json.loads(educacion),
+        # 14 Voluntariado
+        "voluntariado": voluntariado_json,
+        # 15 Formato y Optimización del CV
+        "formato-optimizacion": json.loads(formato_optimizacion)
+    })
