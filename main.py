@@ -1213,6 +1213,10 @@ async def analizar_cv(pdf_url: str, puesto_postular: str):
     parsed = json.loads(mainly_analysis)  # Convierte el string JSON en un diccionario
     overall_score = f"{parsed['porcentaje']}/10"
 
+
+    experiencia_laboral_cleaned = re.sub(r'[\x00-\x1F\x7F]', '', experiencia_laboral)
+    experiencia_laboral_json = json.loads(experiencia_laboral_cleaned)
+
     nombre_pdf = f"analisis_cv_{int(datetime.timestamp(datetime.now()))}.pdf"
     ruta_completa = 'https://myworkin-cv-2.onrender.com/static/analisis_pdfs/'+nombre_pdf
     resultados = {
@@ -1227,7 +1231,7 @@ async def analizar_cv(pdf_url: str, puesto_postular: str):
         "verbos_impact": json.loads(verbos_impact),
         "perfil_profesional": json.loads(perfil_profesional),
         "ajuste_puesto": json.loads(ajuste_puesto),
-        "experiencia_laboral": json.loads(experiencia_laboral),
+        "experiencia_laboral": experiencia_laboral_json,
         "habilidades_herramientas": json.loads(habilidades_herramientas)['recomendaciones'],
         "educacion": json.loads(educacion),
         "voluntariado": voluntariado_json,
