@@ -147,6 +147,22 @@ def extract_address(text):
         return "No disponible"
 
 
+@app.get("/backup-static/")
+async def backup_static():
+    static_folder = "static"
+    zip_buffer = io.BytesIO()
+
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+        for root, dirs, files in os.walk(static_folder):
+            for file in files:
+                file_path = os.path.join(root, file)
+                # Añadir archivo al zip con ruta relativa
+                arcname = os.path.relpath(file_path, static_folder)
+                zip_file.write(file_path, arcname=arcname)
+
+    zip_buffer.seek(0)
+    return StreamingResponse(zip_buffer, media_type="application/zip", headers={"Content-Disposition": "attachment; filename=static_backup.zip"})
+
 @app.get("/analizar-cv/")
 async def analizar_cv(pdf_url: str, puesto_postular: str):
     start_time = time.time()
