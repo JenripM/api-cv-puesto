@@ -1372,7 +1372,7 @@ def seccion_2(c, ancho, alto, y_inicio, datos_cv):
     puesto_postular = datos_cv.get('puesto_postular', 'puesto_postular no disponible')
 
     alto_degradado = 250   # altura menor para el fondo degradado
-    alto_rectangulo = 380  # altura mayor para el rectángulo blanco
+    alto_rectangulo = 385 # altura mayor para el rectángulo blanco
 
     margen_horizontal = 30
     padding_interno = 20
@@ -1476,7 +1476,7 @@ def seccion_2(c, ancho, alto, y_inicio, datos_cv):
         fontSize=10,
         leading=12,
         alignment=TA_JUSTIFY,  # Justificar el texto
-        spaceBefore=25,
+        spaceBefore=25,  # Espacio antes del análisis
         spaceAfter=5,
     )
 
@@ -1485,14 +1485,16 @@ def seccion_2(c, ancho, alto, y_inicio, datos_cv):
     w_analisis, h_analisis = par_analisis.wrap(ancho_div - 2 * padding_interno, alto_div)
 
     # Ajustar la posición para dibujarlo justo debajo del velocímetro
-    y_analisis_pos = centro_y - radio - espacio_despues_velocimetro - 10  # Ajuste la posición aquí
+    # Considera el espacio ocupado por los elementos anteriores y ajusta la posición
+    y_analisis_pos = text_y - 10 - espacio_despues_velocimetro - h_analisis  # Esto asegura que se ubique abajo
+
     par_analisis.drawOn(c, x_div + padding_interno, y_analisis_pos)
 
     x_texto = margen_horizontal
     y_texto = y_inicio - 30  # A
     c.setFont("Poppins-Regular", 12)
     c.setFillColor(colors.black)
-    altura_ocupada = 340  # altura total usada por la sección
+    altura_ocupada = 345 # altura total usada por la sección
     return altura_ocupada
 
 
