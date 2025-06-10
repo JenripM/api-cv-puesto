@@ -1667,7 +1667,10 @@ def seccion_3(c, ancho, alto, y_inicio, datos_cv):
     )
 
     # Crear un único párrafo con los detalles de los errores separados por comas
-    errores_completos = ", ".join([f"{error['original']} → {error['sugerencia']}" for error in detalles_errores])
+    if detalles_errores is not None:
+        errores_completos = ", ".join([f"{error['original']} → {error['sugerencia']}" for error in detalles_errores])
+    else:
+        errores_completos = "No errors found."    
     par_errores_completos = Paragraph(errores_completos, estilo_errores)
 
     # Obtener el tamaño del párrafo
