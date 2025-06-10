@@ -1187,7 +1187,7 @@ async def analizar_cv(pdf_url: str, puesto_postular: str):
     overall_score = f"{parsed['porcentaje']}/10"
 
     nombre_pdf = f"analisis_cv_{int(datetime.timestamp(datetime.now()))}.pdf"
-    ruta_completa = '/static/analisis_pdfs/'+nombre_pdf
+    ruta_completa = 'https://api-cv-210j.onrender.com/static/analisis_pdfs/'+nombre_pdf
     resultados = {
         "nombre": json.loads(candidate_name),
         "mainly_analysis": json.loads(mainly_analysis),
