@@ -46,6 +46,7 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.enums import TA_JUSTIFY
 from reportlab.lib.units import mm
 import time
+from fastapi.middleware.cors import CORSMiddleware       
 
 
 pdfmetrics.registerFont(TTFont('Poppins-Regular', './fonts/Poppins-Regular.ttf'))
@@ -59,6 +60,15 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],       # permite todos los dominios
+    allow_credentials=True,
+    allow_methods=["*"],       # GET, POST, PUT, DELETE, OPTIONS...
+    allow_headers=["*"],       # cualquier cabecera
+)
+
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 from urllib.parse import urlparse
