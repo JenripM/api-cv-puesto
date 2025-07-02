@@ -49,7 +49,8 @@ def clean_and_load_json(response_str):
     return json.loads(cleaned)
 
 @app.get("/analizar-cv/")
-async def analizar_cv(pdf_url: str, puesto_postular: str):
+async def analizar_cv(pdf_url: str, file_original: str, puesto_postular: str):
+    
     response = requests.get(pdf_url)
     
     puesto = puesto_postular
@@ -196,8 +197,10 @@ async def analizar_cv(pdf_url: str, puesto_postular: str):
     
     spelling = response3['choices'][0]['message']['content']
 
-    filename = obtener_nombre_archivo_desde_url(pdf_url)
+    #filename = obtener_nombre_archivo_desde_url(pdf_url)
    
+    filename = file_original
+    print("FILENAME",file_original)
     filename_json = json.dumps(filename)
     contenido_json = json.dumps(contenido)
 

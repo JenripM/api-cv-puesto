@@ -172,7 +172,7 @@ async def backup_static():
     return StreamingResponse(zip_buffer, media_type="application/zip", headers={"Content-Disposition": "attachment; filename=static_backup.zip"})
 
 @app.get("/analizar-cv/")
-async def analizar_cv(pdf_url: str, puesto_postular: str):
+async def analizar_cv(pdf_url: str, puesto_postular: str,  original_name: str,):
     start_time = time.time()
     end_time = time.time()
     processing_time_ms = int((end_time - start_time) * 1000)  # Convertir a milisegundos
@@ -360,8 +360,9 @@ async def analizar_cv(pdf_url: str, puesto_postular: str):
     
     spelling = response3['choices'][0]['message']['content']
 
-    filename = obtener_nombre_archivo_desde_url(pdf_url)
-   
+    #filename = obtener_nombre_archivo_desde_url(pdf_url)
+    filename = original_name
+    print("FILENAME",original_name)
     filename_json = json.dumps(filename)
     contenido_json = json.dumps(contenido)
 
@@ -439,7 +440,7 @@ async def analizar_cv(pdf_url: str, puesto_postular: str):
             "facil_de_distinguir": boolean
         }}
         ],
-        "comentario_general": "Comentario personalizado en primera persona, con un maximo 40 palabras. Usa frases como 'yo veo', 'te recomiendo', 'me parece', 'considero' y evita construcciones impersonales como 'se observa'."
+        "comentario_general": "Comentario personalizado en tercera persona, con un maximo 40 palabras. Usa frases como 'El CV', 'se recomienda', 'se considera'."
     }}
     }}
 
@@ -664,7 +665,7 @@ async def analizar_cv(pdf_url: str, puesto_postular: str):
     {{
         "Empresa": "Nombre de la empresa",
         "Actual": "Texto original tal como aparece en el CV. El nombre del puesto y su descripción.",
-        "Recomendado": "Texto mejorado aplicando el formato indicado y orientado al puesto de {puesto}."
+        "Recomendado": "Texto mejorado aplicando el formato indicado y orientado al puesto de {puesto}. Menciona resultados, ya sea enteros o porcentuales, pero si o si debes mencionar los resultados, se mejoro en tanto"
     }}
     ]
 
@@ -1190,7 +1191,7 @@ async def analizar_cv(pdf_url: str, puesto_postular: str):
 
     # Si no se pudo parsear correctamente, podrías intentar nuevamente o manejar el error
     if education_data_json is None:
-        return await analizar_cv(pdf_url, puesto_postular)
+        return await analizar_cv(pdf_url, puesto_postular,original_name)
 
     # Extraer la educación del JSON
     education = education_data_json.get("education", [])
@@ -2716,7 +2717,7 @@ if not os.path.exists(CARPETA_PDFS):
 
 def generar_pdf_con_secciones(datos_cv, nombre_archivo, logo_path, ruta_logo2):
     ancho = 8.5 * inch
-    alto = 52 * inch  # Tamaño carta
+    alto = 60 * inch  # Tamaño carta
 
     c = canvas.Canvas(CARPETA_PDFS + nombre_archivo, pagesize=(ancho, alto))  # Guardar en la ruta especificada
 
