@@ -698,23 +698,17 @@ async def analizar_cv(pdf_url: str, puesto_postular: str,  original_name: str,):
     2. Evaluar si esta sección está bien redactada, clara, agrupada correctamente y alineada con el perfil profesional del puesto objetivo (**{puesto}**).
     3. Brindar un conjunto de recomendaciones útiles para mejorar esa sección con el fin de hacerla más atractiva y profesional para un reclutador en ese campo.
 
-    Las recomendaciones pueden incluir:
-    - Cómo agrupar las herramientas o habilidades de forma más clara y lógica (por categorías, niveles de dominio, frecuencia de uso, etc.).
-    - Cómo mejorar la redacción para evitar repeticiones, ambigüedades o estructuras confusas.
-    - Qué tipo de habilidades podrían estar faltando según el rol (sin inventar, pero con sugerencias realistas).
-    - Cómo posicionar esa sección en el CV (ej. destacarla si es muy relevante para el rol).
-    - Sugerencias de orden (ej. por prioridad, nivel de experiencia o herramientas más demandadas).
-    - Qué evitar (exceso de herramientas irrelevantes o tecnológicamente obsoletas).
-    - Solo dame 4 recomendaciones
+    Las recomendaciones debe incluir:
+    - Primero iniciara asi CV Actual y aqui colocaras una parte maximo 25 palabras de lo que se considera en el cv
+    - Segundo iniciara Recomendaciones:  y  Pondras Las herramientos como debe ir Por ejemplo: "Informatica (Herramientas) (Nivel) solo es un ejemplo tu analizalo bien" 
     El tono de las recomendaciones deben ser exhortativas, como si estuvieras dando consejos prácticos al candidato. no usar verbos infinitivos mas si, orientados a resultados.
 
     Tu respuesta debe ser exclusivamente en formato JSON, con la siguiente estructura:
 
     {{
     "recomendaciones": [
-        "Primera recomendación clara y específica.",
-        "Segunda recomendación relevante y alineada al rol {puesto}.",
-        "... (tantas como correspondan, mínimo 3 si es posible)"
+        "CV ACTUAL: Aqui debes poner una parte del cv donde se menciona las habilidades y herramientas **{contenido}**,
+        "RECOMENDACIONES: Aqui debes darme recomendaciones{puesto}.",
     ]
     }}
 
