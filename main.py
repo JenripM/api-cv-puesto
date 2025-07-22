@@ -47,6 +47,7 @@ from reportlab.lib.enums import TA_JUSTIFY
 from reportlab.lib.units import mm
 import time
 from fastapi.middleware.cors import CORSMiddleware       
+from pydantic import BaseModel
 
 
 pdfmetrics.registerFont(TTFont('Poppins-Regular', './fonts/Poppins-Regular.ttf'))
@@ -171,13 +172,25 @@ async def backup_static():
     zip_buffer.seek(0)
     return StreamingResponse(zip_buffer, media_type="application/zip", headers={"Content-Disposition": "attachment; filename=static_backup.zip"})
 
-@app.get("/analizar-cv/")
-async def analizar_cv(pdf_url: str, puesto_postular: str,  original_name: str,):
+
+class CVRequest(BaseModel):
+    pdf_url: str
+    puesto_postular: str
+    original_name: str
+    descripcion_puesto: str
+
+@app.post("/analizar-cv/")
+async def analizar_cv(request: CVRequest):
     start_time = time.time()
     end_time = time.time()
     processing_time_ms = int((end_time - start_time) * 1000)  # Convertir a milisegundos
     analysis_datetime = datetime.now().isoformat()  # "YYYY-MM-DDTHH:MM:SS"
     
+    pdf_url = request.pdf_url
+    puesto_postular = request.puesto_postular
+    original_name = request.original_name
+    descripcion_puesto = request.descripcion_puesto
+
     original_pdf = pdf_url
 
     response = requests.get(pdf_url)
@@ -223,7 +236,7 @@ async def analizar_cv(pdf_url: str, puesto_postular: str,  original_name: str,):
 
 
     prompt1 = f"""
-    Eres un reclutador profesional. Recibirás el perfil de un candidato en formato JSON y deberás evaluar su idoneidad para el puesto de "{puesto}".
+    Eres un reclutador profesional. Recibirás el perfil de un candidato en formato JSON y deberás evaluar su idoneidad para el puesto de "{puesto}" teniendo en cuenta tambien que el puesto consiste en "{descripcion_puesto}" .
 
     Evalúa cuidadosamente estos aspectos:
     - Experiencia laboral relevante para el puesto.
@@ -567,7 +580,7 @@ async def analizar_cv(pdf_url: str, puesto_postular: str,  original_name: str,):
 
     Tu objetivo es evaluar la redacción del texto actual y sugerir una versión mejorada que sea más clara, profesional y alineada con estándares actuales. Usa como guía el siguiente enfoque de redacción (no lo copies literalmente):
 
-    Debe empezar con: "Estudiante de “Número” ciclo de “Carrera” en la/el “Nombre de la Universidad”". Haz lo posible por ecnontrar esa informacion, en todo el texto. En caso no encuentres la informacino necesesaria indica algo como Estudiante de 'X' de la carrera 'Y' de la Universidad 'Z' como recomendacion. A partir de ahí, describe la identidad profesional de forma integral, combinando elementos personales como mentalidad, valores o trayectoria con intereses profesionales, fortalezas, experiencias relevantes o áreas de especialización. El objetivo es proyectar una imagen clara, auténtica y alineada con las metas profesionales del estudiante. Añade un toque personal que haga sentir al lector que conoce al candidato, pero manteniendo un tono profesional y directo. de acuerdo al puesto de {puesto}. en lo posible identifica la carrera y la universidad del candidato.
+    Debe empezar con: "Estudiante de “Número” ciclo de “Carrera” en la/el “Nombre de la Universidad”". Haz lo posible por ecnontrar esa informacion, en todo el texto. En caso no encuentres la informacino necesesaria indica algo como Estudiante de 'X' de la carrera 'Y' de la Universidad 'Z' como recomendacion. A partir de ahí, describe la identidad profesional de forma integral, combinando elementos personales como mentalidad, valores o trayectoria con intereses profesionales, fortalezas, experiencias relevantes o áreas de especialización. El objetivo es proyectar una imagen clara, auténtica y alineada con las metas profesionales del estudiante. Añade un toque personal que haga sentir al lector que conoce al candidato, pero manteniendo un tono profesional y directo. de acuerdo al puesto de {puesto} teniendo en cuenta tambien que el puesto consiste en "{descripcion_puesto}". en lo posible identifica la carrera y la universidad del candidato.
 
     No menciones para nada "X" "Y" "Z" no los menciones, tienes que si o si de todo el {contenido} encontrar la carrera, universidad.
     Devuelve solo un JSON con esta estructura:
@@ -591,7 +604,7 @@ async def analizar_cv(pdf_url: str, puesto_postular: str,  original_name: str,):
 
 
     prompt10 = f"""
-    Actúa como un reclutador experto en selección de personal para el rol de {puesto}. Evalúa el contenido del siguiente CV y clasifícalo en las siguientes categorías:
+    Actúa como un reclutador experto en selección de personal para el rol de {puesto} teniendo en cuenta tambien que el puesto consiste en "{descripcion_puesto}". Evalúa el contenido del siguiente CV y clasifícalo en las siguientes categorías:
 
     - Habilidades de análisis
     - Resultados cuantificables
@@ -643,7 +656,7 @@ async def analizar_cv(pdf_url: str, puesto_postular: str,  original_name: str,):
 
 
     prompt11 = f"""
-    Brinda sugerencias personalizadas de mejora por sección del CV, orientadas al rol de {puesto}.
+    Brinda sugerencias personalizadas de mejora por sección del CV, orientadas al rol de {puesto} teniendo en cuenta tambien que el puesto consiste en "{descripcion_puesto}".
 
     En esta parte, cubre lo siguiente:
 
@@ -655,7 +668,7 @@ async def analizar_cv(pdf_url: str, puesto_postular: str,  original_name: str,):
 
         Además:
         - Inicia con un verbo de acción fuerte.
-        - Alinea el contenido con las funciones o competencias clave para el rol de {puesto}.
+        - Alinea el contenido con las funciones o competencias clave para el rol de {puesto} teniendo en cuenta tambien que el puesto consiste en "{descripcion_puesto}".
         - Usa el contenido original como base, no inventes logros no mencionados.
         - Mejora redacción, impacto y claridad, sin agregar información no contenida en el texto original.
 
@@ -665,7 +678,7 @@ async def analizar_cv(pdf_url: str, puesto_postular: str,  original_name: str,):
     {{
         "Empresa": "Nombre de la empresa",
         "Actual": "Texto original tal como aparece en el CV. El nombre del puesto y su descripción.",
-        "Recomendado": "Texto mejorado aplicando el formato indicado y orientado al puesto de {puesto}. Menciona resultados, ya sea enteros o porcentuales, pero si o si debes mencionar los resultados, se mejoro en tanto"
+        "Recomendado": "Texto mejorado aplicando el formato indicado y orientado al puesto de "{puesto}" teniendo en cuenta tambien que el puesto consiste en "{descripcion_puesto}". Menciona resultados, ya sea enteros o porcentuales, pero si o si debes mencionar los resultados, se mejoro en tanto"
     }}
     ]
 
@@ -691,11 +704,11 @@ async def analizar_cv(pdf_url: str, puesto_postular: str,  original_name: str,):
 
     \"\"\"{contenido}\"\"\"
 
-    El puesto objetivo del candidato es: **{puesto}**
+    El puesto objetivo del candidato es: **{puesto}** teniendo en cuenta tambien que el puesto consiste en "{descripcion_puesto}"
 
     Tu tarea es:
     1. Identificar la sección relacionada con habilidades técnicas, herramientas, conocimientos técnicos o específicos del perfil (ej. software, metodologías, idiomas, maquinaria, plataformas, etc.).
-    2. Evaluar si esta sección está bien redactada, clara, agrupada correctamente y alineada con el perfil profesional del puesto objetivo (**{puesto}**).
+    2. Evaluar si esta sección está bien redactada, clara, agrupada correctamente y alineada con el perfil profesional del puesto objetivo (**{puesto}**) teniendo en cuenta tambien que el puesto consiste en "{descripcion_puesto}".
     3. Brindar un conjunto de recomendaciones útiles para mejorar esa sección con el fin de hacerla más atractiva y profesional para un reclutador en ese campo.
 
     Las recomendaciones debe incluir:
@@ -708,7 +721,7 @@ async def analizar_cv(pdf_url: str, puesto_postular: str,  original_name: str,):
     {{
     "recomendaciones": [
         "CV ACTUAL: Aqui debes poner una parte del cv donde se menciona las habilidades y herramientas **{contenido}**,
-        "RECOMENDACIONES: Aqui debes darme recomendaciones{puesto}.",
+        "RECOMENDACIONES: Aqui debes darme recomendaciones{puesto}. teniendo en cuenta tambien que el puesto consiste en "{descripcion_puesto}"",
     ]
     }}
 
@@ -730,7 +743,7 @@ async def analizar_cv(pdf_url: str, puesto_postular: str,  original_name: str,):
 
     - Ser útiles y aplicables para mejorar la presentación y claridad de la formación académica.
     - Cada recomendación debe tener como minimo 20 palabras. El tono de las recomendaciones deben ser exhortativas, como si estuvieras dando consejos prácticos al candidato. no usar verbos infinitivos mas si, orientados a resultados. Haz recomendaciones puntuales y específicas, segun el puesto.
-    - No inventes información no presente en el CV. Enfocado al puesto de {puesto}. 
+    - No inventes información no presente en el CV. Enfocado al puesto de {puesto} teniendo en cuenta tambien que el puesto consiste en "{descripcion_puesto}". 
     - Si no hay una sección de educación/formación académica en el CV, incluye una única recomendación indicando que dicha sección no fue encontrada. no usar verbos infinitivos mas si, orientados a resultados
     - Solo dame 4 recomendaciones
     Analiza este contenido:
@@ -766,7 +779,7 @@ async def analizar_cv(pdf_url: str, puesto_postular: str,  original_name: str,):
     - "Recomendado": versión mejorada del texto, manteniendo la experiencia pero:
         - Iniciando con un verbo de acción potente.
         - Destacando logros, impacto o habilidades desarrolladas.
-        - Enfocando el texto en competencias alineadas al rol de {puesto}.
+        - Enfocando el texto en competencias alineadas al rol de {puesto} teniendo en cuenta tambien que el puesto consiste en "{descripcion_puesto}".
         - Sin inventar contenido no presente en el CV.
 
     Si **no se encuentra** una sección de voluntariado, responde igualmente con un JSON en este formato:
@@ -799,13 +812,13 @@ async def analizar_cv(pdf_url: str, puesto_postular: str,  original_name: str,):
 
 
     prompt15 = f"""
-    Actúa como un experto en revisión profesional de currículums (CVs), con énfasis en formato, claridad y atracción para reclutadores. Tienes que responder de tu a tu a un candidato que busca mejorar su CV para el puesto de **{puesto}**.
+    Actúa como un experto en revisión profesional de currículums (CVs), con énfasis en formato, claridad y atracción para reclutadores. Tienes que responder de tu a tu a un candidato que busca mejorar su CV para el puesto de **{puesto}** teniendo en cuenta tambien que el puesto consiste en "{descripcion_puesto}".
 
     Evalúa el siguiente contenido extraído de un CV:
 
     \"\"\"{contenido}\"\"\"
 
-    El rol objetivo es: **{puesto}**
+    El rol objetivo es: **{puesto}** teniendo en cuenta tambien que el puesto consiste en "{descripcion_puesto}"
 
     Tu tarea es analizar el formato del CV con base en los siguientes criterios, orientados a mejorar su presentación y efectividad:
 
@@ -813,13 +826,13 @@ async def analizar_cv(pdf_url: str, puesto_postular: str,  original_name: str,):
 
     2. **Foto**: Verifica si el CV incluye una foto. La mayoría de los filtros automáticos de RRHH no lo recomiendan, especialmente en países donde se evita por sesgos. ENtonces, si hay foto el estado es "Bajo", si no hay foto el estado es "Alto". 
     
-    3. **Palabras clave**: Evalúa si incluye términos relevantes al puesto, como tecnologías, habilidades técnicas, o conceptos específicos (por ejemplo, en el caso de {puesto}, busca términos como: análisis de riesgo, scoring, producto financiero, gestión, liderazgo, procesos, herramientas, etc.).
+    3. **Palabras clave**: Evalúa si incluye términos relevantes al puesto, como tecnologías, habilidades técnicas, o conceptos específicos (por ejemplo, en el caso de {puesto} teniendo en cuenta tambien que el puesto consiste en "{descripcion_puesto}", busca términos como: análisis de riesgo, scoring, producto financiero, gestión, liderazgo, procesos, herramientas, etc.).
     4. **Verbos de impacto**: Evalúa si se utilizan verbos potentes y orientados a resultados, como: "lideré", "implementé", "optimizé", "logré", en lugar de verbos vagos o pasivos como "encargado de", "apoyé", "participé".
 
     Para cada uno de estos 4 criterios, responde con:
 
     -"estado"`: Puede ser **"Alto"**, **"Medio"** o **"Bajo"**, según la calidad o presencia del elemento.
-    - "sugerencia"`: Hablame de tu a tu, dime algo como La longitud de tu CV es adecuada, o La foto que subiste no es necesaria en un CV, o Te recomiendo incluir más palabras clave relacionadas con el puesto de {puesto}, o Usa verbos de impacto para destacar tus logros. pero de tu a tu, que se sienta que es un consejo profesional directo, maximo 30 palabras.
+    - "sugerencia"`: Hablame de tu a tu, dime algo como La longitud de tu CV es adecuada, o La foto que subiste no es necesaria en un CV, o Te recomiendo incluir más palabras clave relacionadas con el puesto de {puesto} teniendo en cuenta tambien que el puesto consiste en "{descripcion_puesto}", o Usa verbos de impacto para destacar tus logros. pero de tu a tu, que se sienta que es un consejo profesional directo, maximo 30 palabras.
 
     Devuelve exclusivamente un JSON con el siguiente formato:
 
@@ -854,7 +867,7 @@ async def analizar_cv(pdf_url: str, puesto_postular: str,  original_name: str,):
     # PROMPT ADICIONALES
 
     prompt_feedback_summary = f"""
-    Eres un reclutador profesional. A continuación, se muestra el contenido del CV de un candidato para el puesto de {puesto}. Por favor, proporciona un resumen general del feedback para el candidato, considerando los siguientes aspectos:
+    Eres un reclutador profesional. A continuación, se muestra el contenido del CV de un candidato para el puesto de {puesto} teniendo en cuenta tambien que el puesto consiste en "{descripcion_puesto}". Por favor, proporciona un resumen general del feedback para el candidato, considerando los siguientes aspectos:
 
     - La calidad general del CV, incluyendo su claridad y profesionalismo.
     - La relevancia de la experiencia laboral para el puesto al que está aplicando.
@@ -930,7 +943,7 @@ async def analizar_cv(pdf_url: str, puesto_postular: str,  original_name: str,):
         return keywords_data
 
     prompt_formatting = f"""
-    Eres un reclutador profesional. A continuación, se muestra el contenido del CV de un candidato para el puesto de {puesto}. 
+    Eres un reclutador profesional. A continuación, se muestra el contenido del CV de un candidato para el puesto de {puesto} teniendo en cuenta tambien que el puesto consiste en "{descripcion_puesto}". 
     Por favor, proporciona un análisis detallado sobre el formato y lenguaje del CV, evaluando lo siguiente:
 
     1. Claridad del CV: ¿Es fácil de leer y entender? ¿La información está organizada de manera clara?
@@ -960,10 +973,10 @@ async def analizar_cv(pdf_url: str, puesto_postular: str,  original_name: str,):
     formatting = process_formatting_response(response_formatting['choices'][0]['message']['content'])
 
     prompt_keywords = f"""
-    Eres un reclutador profesional. A continuación, se muestra el contenido del CV de un candidato para el puesto de {puesto}. 
+    Eres un reclutador profesional. A continuación, se muestra el contenido del CV de un candidato para el puesto de {puesto} teniendo en cuenta tambien que el puesto consiste en "{descripcion_puesto}". 
     Por favor, extrae las palabras clave relevantes para el puesto en cuestión y las habilidades generales mencionadas en el CV. 
 
-    Primero, identifica las palabras clave relacionadas con el puesto de {puesto}, estas pueden ser habilidades técnicas, habilidades blandas o certificaciones que son relevantes para el rol. Luego, clasifica las palabras clave en las siguientes categorías:
+    Primero, identifica las palabras clave relacionadas con el puesto de {puesto} teniendo en cuenta tambien que el puesto consiste en "{descripcion_puesto}", estas pueden ser habilidades técnicas, habilidades blandas o certificaciones que son relevantes para el rol. Luego, clasifica las palabras clave en las siguientes categorías:
 
     1. **Palabras clave encontradas**: Las palabras clave relacionadas con el puesto que aparecen en el CV.
     2. **Palabras clave faltantes**: Las palabras clave que son esenciales para el puesto pero no aparecen en el CV.
@@ -1048,7 +1061,7 @@ async def analizar_cv(pdf_url: str, puesto_postular: str,  original_name: str,):
     fortalezas = respon_fortaleza['choices'][0]['message']['content'].strip()
 
     prompt_ats_compliance = f"""
-    Eres un reclutador profesional con experiencia en el uso de sistemas de seguimiento de candidatos (ATS). A continuación, se muestra el contenido del CV de un candidato para el puesto de {puesto}. 
+    Eres un reclutador profesional con experiencia en el uso de sistemas de seguimiento de candidatos (ATS). A continuación, se muestra el contenido del CV de un candidato para el puesto de {puesto} teniendo en cuenta tambien que el puesto consiste en "{descripcion_puesto}". 
     Por favor, evalúa el cumplimiento del CV con respecto a los criterios comunes de un sistema ATS. 
 
     Tu tarea es realizar lo siguiente:
@@ -1108,7 +1121,7 @@ async def analizar_cv(pdf_url: str, puesto_postular: str,  original_name: str,):
 
 
     prompt_skills = f"""
-    Eres un reclutador profesional. A continuación, se muestra el contenido del CV de un candidato para el puesto de {puesto}. 
+    Eres un reclutador profesional. A continuación, se muestra el contenido del CV de un candidato para el puesto de {puesto} teniendo en cuenta tambien que el puesto consiste en "{descripcion_puesto}". 
     Por favor, extrae las habilidades técnicas, habilidades blandas e idiomas mencionados en el CV. 
 
     Proporciona los datos de la siguiente manera, asegurándote de que cada sección esté bien organizada:
@@ -1150,7 +1163,7 @@ async def analizar_cv(pdf_url: str, puesto_postular: str,  original_name: str,):
 
 
     prompt_education = f"""
-    Eres un reclutador profesional. A continuación, se muestra el contenido del CV de un candidato para el puesto de {puesto}. Por favor, extrae la información relacionada con la educación. Para cada título educativo, proporciona la siguiente información de manera estructurada en JSON:
+    Eres un reclutador profesional. A continuación, se muestra el contenido del CV de un candidato para el puesto de {puesto} teniendo en cuenta tambien que el puesto consiste en "{descripcion_puesto}". Por favor, extrae la información relacionada con la educación. Para cada título educativo, proporciona la siguiente información de manera estructurada en JSON:
 
     - Grado: El título académico obtenido por el candidato (por ejemplo, Licenciatura en Ingeniería de Sistemas).
     - Institución: El nombre de la institución educativa en la que el candidato obtuvo su título.
