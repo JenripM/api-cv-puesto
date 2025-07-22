@@ -1198,7 +1198,14 @@ async def analizar_cv(request: CVRequest):
 
     # Si no se pudo parsear correctamente, podrías intentar nuevamente o manejar el error
     if education_data_json is None:
-        return await analizar_cv(pdf_url, puesto_postular,original_name)
+        # Crear un objeto con datos predeterminados (si es necesario)
+        cv_request = CVRequest(
+            pdf_url="default_url.pdf",
+            puesto_postular="Desarrollador",
+            original_name="default_cv.pdf",
+            descripcion_puesto="Desarrollador de software"
+        )
+        return await analizar_cv(cv_request)
 
     # Extraer la educación del JSON
     education = education_data_json.get("education", [])
@@ -1285,10 +1292,10 @@ async def analizar_cv(request: CVRequest):
     }
 
     # Generar el PDF y obtener la ruta
-    ruta_pdf = generar_pdf_con_secciones(resultados, nombre_pdf, ruta_logo,ruta_logo2)  # Aquí pasamos la ruta del logo
+    #ruta_pdf = generar_pdf_con_secciones(resultados, nombre_pdf, ruta_logo,ruta_logo2)  # Aquí pasamos la ruta del logo
 
     # Agregar la ruta del PDF al JSON de la respuesta
-    resultados["pdf_evaluado"] = ruta_pdf
+    #resultados["pdf_evaluado"] = ruta_pdf
 
     return JSONResponse(content=resultados)
 
