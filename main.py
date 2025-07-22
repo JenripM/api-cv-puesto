@@ -1226,7 +1226,7 @@ async def analizar_cv(request: CVRequest):
     experiencia_laboral_json = json.loads(experiencia_laboral_cleaned)
 
     nombre_pdf = f"analisis_cv_{int(datetime.timestamp(datetime.now()))}.pdf"
-    ruta_completa = 'https://myworkin-cv-2.onrender.com/static/analisis_pdfs/'+nombre_pdf
+    ruta_completa = 'https://api-cv-puesto.onrender.com/static/analisis_pdfs/'+nombre_pdf
     resultados = {
         "nombre": json.loads(candidate_name),
         "mainly_analysis": clean_and_load_json(mainly_analysis),
