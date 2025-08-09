@@ -263,7 +263,6 @@ async def analizar_cv(pdf_url: str, puesto_postular: str,  original_name: str,):
         model="gpt-3.5-turbo", 
         messages=[{"role": "user", "content": prompt1}],
         temperature=0.7,
-       # max_tokens=100
     )
     mainly_analysis = response1['choices'][0]['message']['content']
 
@@ -303,7 +302,6 @@ async def analizar_cv(pdf_url: str, puesto_postular: str,  original_name: str,):
         model="gpt-3.5-turbo", 
         messages=[{"role": "user", "content": prompt2}],
         temperature=0.7,
-       # max_tokens=100
     )
     pagination = response2['choices'][0]['message']['content']
 
@@ -355,12 +353,10 @@ async def analizar_cv(pdf_url: str, puesto_postular: str,  original_name: str,):
         model="gpt-3.5-turbo", 
         messages=[{"role": "user", "content": prompt3}],
         temperature=0.7,
-        #max_tokens=50  
     )
     
     spelling = response3['choices'][0]['message']['content']
 
-    #filename = obtener_nombre_archivo_desde_url(pdf_url)
     filename = original_name
     print("FILENAME",original_name)
     filename_json = json.dumps(filename)
@@ -394,11 +390,9 @@ async def analizar_cv(pdf_url: str, puesto_postular: str,  original_name: str,):
         model="gpt-3.5-turbo",
         messages=[{"role": "user", "content": prompt4}],
         temperature=0.7,
-        #max_tokens=50
     )
     filename_response = response4['choices'][0]['message']['content']
 
-   # print("filename_response", filename_response)
 
     prompt5 = f"""
     Actúa como un reclutador profesional experto en evaluación de currículums.
@@ -453,7 +447,6 @@ async def analizar_cv(pdf_url: str, puesto_postular: str,  original_name: str,):
         model="gpt-3.5-turbo", 
         messages=[{"role": "user", "content": prompt5}],
         temperature=0.7,
-        #max_tokens=50  
     )
 
     indispensable = response5['choices'][0]['message']['content']
@@ -492,7 +485,6 @@ async def analizar_cv(pdf_url: str, puesto_postular: str,  original_name: str,):
         model="gpt-3.5-turbo", 
         messages=[{"role": "user", "content": prompt6}],
         temperature=0.7,
-        #max_tokens=50  
     )
 
     repeat_words = response6['choices'][0]['message']['content']
@@ -525,7 +517,6 @@ async def analizar_cv(pdf_url: str, puesto_postular: str,  original_name: str,):
         model="gpt-3.5-turbo", 
         messages=[{"role": "user", "content": prompt7}],
         temperature=0.7,
-        #max_tokens=50  
     )
     relevance = response7['choices'][0]['message']['content']
 
@@ -556,7 +547,6 @@ async def analizar_cv(pdf_url: str, puesto_postular: str,  original_name: str,):
         model="gpt-3.5-turbo", 
         messages=[{"role": "user", "content": prompt8}],
         temperature=0.7,
-        #max_tokens=50  
     )
     verbos_impact = response8['choices'][0]['message']['content']
 
